@@ -23,12 +23,15 @@ pub enum Command {
 
     /// Show log
     Show(ShowArgs),
+
+    /// Summarise attendance
+    Summary(SummaryArgs),
 }
 
 #[derive(Debug, Args)]
 pub struct LogArgs {
-    #[arg(long = "type")]
-    record_type: Option<LogRecordType>,
+    #[arg(long)]
+    exclusion: Option<Exclusion>,
 
     #[arg(long)]
     date: Option<NaiveDate>,
@@ -36,13 +39,13 @@ pub struct LogArgs {
     #[arg(long)]
     description: Option<String>,
 
-    #[arg(short, long, action = ArgAction::SetTrue)]
-    append: bool,
+    #[command(flatten)]
+    flags: LogFlags,
 }
 
 impl LogArgs {
-    pub fn record_type(&self) -> Option<&LogRecordType> {
-        self.record_type.as_ref()
+    pub fn exclusion(&self) -> Option<&Exclusion> {
+        self.exclusion.as_ref()
     }
 
     pub fn date(&self) -> Option<&NaiveDate> {
@@ -54,19 +57,22 @@ impl LogArgs {
     }
 
     pub fn append(&self) -> bool {
-        self.append
+        self.flags.append
+    }
+
+    pub fn delete(&self) -> bool {
+        self.flags.delete
     }
 }
 
 #[derive(Debug, Clone, ValueEnum)]
-pub enum LogRecordType {
-    /// Working at the office
-    Office,
-
+pub enum Exclusion {
     /// Authorised working from home
+    #[clap(name = "wfh")]
     WorkingFromHome,
 
     /// Annual leave
+    #[clap(name = "al")]
     AnnualLeave,
 
     /// Sick day
@@ -74,6 +80,16 @@ pub enum LogRecordType {
 
     /// Other
     Other,
+}
+
+#[derive(Debug, Args)]
+#[group(required = false, multiple = false)]
+struct LogFlags {
+    #[arg(short, long, action = ArgAction::SetTrue)]
+    append: bool,
+
+    #[arg(long, action = ArgAction::SetTrue)]
+    delete: bool,
 }
 
 #[derive(Debug, Args)]
@@ -85,5 +101,17 @@ pub struct ShowArgs {
 impl ShowArgs {
     pub fn top(&self) -> Option<usize> {
         self.top
+    }
+}
+
+#[derive(Debug, Args)]
+pub struct SummaryArgs {
+    #[arg(long)]
+    months: Option<usize>,
+}
+
+impl SummaryArgs {
+    pub fn months(&self) -> Option<usize> {
+        self.months
     }
 }

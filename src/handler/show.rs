@@ -1,12 +1,24 @@
-use crate::{cli, repository::Repository};
+use itertools::Itertools;
 
-pub fn show(args: &cli::ShowArgs, repository: &dyn Repository) {
-    let records = repository.get();
+use crate::{cli, error::Result, model::Record, printer::RecordPrinter, repository::Repository};
+
+pub fn show(
+    args: &cli::ShowArgs,
+    repository: &dyn Repository,
+    printer: &dyn RecordPrinter,
+) -> Result<()> {
+    let records = repository.get()?;
+
+    let sorted: Vec<Record> = records
+        .into_iter()
+        .sorted_by(|a, b| a.created().cmp(b.created()).reverse())
+        .collect();
 
     let truncated = match args.top() {
-        None => records.as_slice(),
-        Some(count) => &records.as_slice()[0..count],
+        None => sorted.as_slice(),
+        Some(count) => &sorted.as_slice()[0..count],
     };
 
-    println!("{:?}", truncated);
+    printer.print(truncated);
+    Ok(())
 }

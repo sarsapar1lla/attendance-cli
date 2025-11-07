@@ -38,7 +38,9 @@ impl FileRepository {
     fn directory() -> PathBuf {
         let data_directory = match env::var(XDG_DATA_HOME) {
             Ok(value) => PathBuf::from_str(&value).unwrap(),
-            Err(VarError::NotPresent) => home_dir().unwrap(),
+            Err(VarError::NotPresent) => home_dir()
+                .map(|home| [home, ".local/share".into()].iter().collect())
+                .unwrap(),
             Err(error) => panic!("Invalid `{}` value: {}", XDG_DATA_HOME, error),
         };
 

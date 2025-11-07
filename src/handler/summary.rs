@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use chrono::{Datelike, Months, NaiveDate, Utc, Weekday};
+use chrono::{DateTime, Datelike, Months, NaiveDate, Utc, Weekday};
 use itertools::{Itertools, any};
 
 use crate::{
@@ -18,47 +18,79 @@ static BANK_HOLIDAYS: LazyLock<Vec<NaiveDate>> = LazyLock::new(|| {
     ]
 });
 
-pub fn summary(
-    args: &cli::SummaryArgs,
-    repository: &dyn Repository,
-    printer: &dyn SummaryPrinter,
-) -> Result<()> {
-    let number_of_months = args.months().unwrap_or(1);
-    let months = last_n_months(number_of_months);
-    let records = repository.get()?;
-    let filtered: Vec<Record> = records
-        .into_iter()
-        .filter(|r| record_in_months(r, &months))
-        .collect();
+pub struct Handler<'a> {
+    repository: &'a dyn Repository,
+    printer: &'a dyn SummaryPrinter,
+    now_fn: fn() -> DateTime<Utc>,
+}
 
-    let dates = filtered
-        .into_iter()
-        .sorted_by(|a, b| Ord::cmp(a.date(), b.date()).then(Ord::cmp(a.created(), b.created())))
-        .chunk_by(|r| *r.date());
+impl<'a> Handler<'a> {
+    pub fn new(repository: &'a dyn Repository, printer: &'a dyn SummaryPrinter) -> Handler<'a> {
+        Self {
+            repository,
+            printer,
+            now_fn: Utc::now,
+        }
+    }
 
-    let deduplicated: Vec<Record> = dates
-        .into_iter()
-        .filter_map(|records| match records.1.last() {
-            None => None,
-            Some(record) if record.state() == &State::Delete => None,
-            Some(record) => Some(record),
-        })
-        .collect();
+    pub fn summary(&self, args: &cli::SummaryArgs) -> Result<()> {
+        let number_of_months = args.months().unwrap_or(1);
+        let months = self.last_n_months(number_of_months);
+        let records = self.repository.get()?;
+        let filtered: Vec<Record> = records
+            .into_iter()
+            .filter(|r| Handler::record_in_months(r, &months))
+            .collect();
 
-    let mut summaries = summarise(deduplicated);
-    let empty: Vec<Summary> = months
-        .into_iter()
-        .filter(|month| !any(&summaries, |summary| summary.month() == month))
-        .map(|month| summarise_month(month, &[]))
-        .collect();
+        let dates = filtered
+            .into_iter()
+            .sorted_by(|a, b| Ord::cmp(a.date(), b.date()).then(Ord::cmp(a.created(), b.created())))
+            .chunk_by(|r| *r.date());
 
-    summaries.extend(empty);
+        let deduplicated: Vec<Record> = dates
+            .into_iter()
+            .filter_map(|records| match records.1.last() {
+                None => None,
+                Some(record) if record.state() == &State::Delete => None,
+                Some(record) => Some(record),
+            })
+            .collect();
 
-    summaries.sort_by(|a, b| Ord::cmp(a.month(), b.month()).reverse());
+        let mut summaries = summarise(deduplicated);
+        let empty: Vec<Summary> = months
+            .into_iter()
+            .filter(|month| !any(&summaries, |summary| summary.month() == month))
+            .map(|month| summarise_month(month, &[]))
+            .collect();
 
-    printer.print(&summaries);
+        summaries.extend(empty);
 
-    Ok(())
+        summaries.sort_by(|a, b| Ord::cmp(a.month(), b.month()).reverse());
+
+        self.printer.print(&summaries);
+
+        Ok(())
+    }
+
+    fn last_n_months(&self, n: usize) -> Vec<SummaryMonth> {
+        let today = (self.now_fn)()
+            .date_naive()
+            .with_day(1)
+            .expect("Every month has a first day");
+        (0..n)
+            .map(|months_back| {
+                today
+                    .checked_sub_months(Months::new(months_back as u32))
+                    .unwrap()
+            })
+            .map(SummaryMonth::new)
+            .collect()
+    }
+
+    fn record_in_months(record: &Record, months: &[SummaryMonth]) -> bool {
+        let month = SummaryMonth::new(*record.date());
+        months.contains(&month)
+    }
 }
 
 fn summarise(records: Vec<Record>) -> Vec<Summary> {
@@ -103,22 +135,108 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
         .build()
 }
 
-fn record_in_months(record: &Record, months: &[SummaryMonth]) -> bool {
-    let month = SummaryMonth::new(*record.date());
-    months.contains(&month)
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-fn last_n_months(n: usize) -> Vec<SummaryMonth> {
-    let today = Utc::now()
-        .date_naive()
-        .with_day(1)
-        .expect("Every month has a first day");
-    (0..n)
-        .map(|months_back| {
-            today
-                .checked_sub_months(Months::new(months_back as u32))
-                .unwrap()
-        })
-        .map(SummaryMonth::new)
-        .collect()
+    mod summarise_tests {
+        use chrono::TimeZone;
+        use uuid::Uuid;
+
+        use super::*;
+
+        #[test]
+        fn summarises_each_month() {
+            let records = vec![record(9), record(10), record(11)];
+            let actual = summarise(records);
+            assert_eq!(
+                actual,
+                vec![
+                    Summary::builder()
+                        .month(SummaryMonth::new(2025, Month::September))
+                        .office_days(23)
+                        .workdays(1)
+                        .attendance(0.12)
+                        .build()
+                ]
+            )
+        }
+
+        fn record(month: u32) -> Record {
+            Record::builder()
+                .id(Uuid::parse_str("0a766a52-c869-4be5-a695-4b258e2f2e87").unwrap())
+                .created(Utc.with_ymd_and_hms(2025, 10, 31, 10, 0, 0).unwrap())
+                .state(State::Create)
+                .record_type(RecordType::Office)
+                .date(NaiveDate::from_ymd_opt(2025, month, 1).unwrap())
+                .build()
+        }
+    }
+
+    mod summarise_month_tests {
+        use chrono::TimeZone;
+        use uuid::Uuid;
+
+        use super::*;
+
+        #[test]
+        fn counts_office_days() {
+            let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 10, 1).unwrap());
+            let records = vec![
+                record(1, RecordType::Office),
+                record(2, RecordType::Office),
+                record(6, RecordType::Office),
+            ];
+            let actual = summarise_month(month, &records);
+            assert_eq!(actual.office_days(), 3)
+        }
+
+        #[test]
+        fn counts_workdays() {
+            let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 10, 1).unwrap());
+            let actual = summarise_month(month, &[]);
+            assert_eq!(actual.workdays(), 23)
+        }
+
+        #[test]
+        fn counts_workdays_including_exclusions() {
+            let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 10, 1).unwrap());
+            let records = vec![
+                record(1, RecordType::WorkingFromHome),
+                record(2, RecordType::AnnualLeave),
+                record(6, RecordType::Sick),
+            ];
+            let actual = summarise_month(month, &records);
+            assert_eq!(actual.workdays(), 20)
+        }
+
+        #[test]
+        fn counts_workdays_excluding_bank_holidays() {
+            let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap());
+            let actual = summarise_month(month, &[]);
+            assert_eq!(actual.workdays(), 21)
+        }
+
+        #[test]
+        fn calculates_attendance() {
+            let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 10, 1).unwrap());
+            let records = vec![
+                record(1, RecordType::Office),
+                record(2, RecordType::Office),
+                record(6, RecordType::Office),
+            ];
+            let actual = summarise_month(month, &records);
+            assert_eq!(actual.attendance(), 0.13043478)
+        }
+
+        fn record(day: u32, record_type: RecordType) -> Record {
+            Record::builder()
+                .id(Uuid::parse_str("0a766a52-c869-4be5-a695-4b258e2f2e87").unwrap())
+                .created(Utc.with_ymd_and_hms(2025, 10, 31, 10, 0, 0).unwrap())
+                .state(State::Create)
+                .record_type(record_type)
+                .date(NaiveDate::from_ymd_opt(2025, 10, day).unwrap())
+                .build()
+        }
+    }
 }

@@ -81,6 +81,11 @@ impl SummaryMonth {
         Self { year, month }
     }
 
+    #[cfg(test)]
+    pub fn from_parts(year: u32, month: Month) -> Self {
+        Self { year, month }
+    }
+
     pub fn year(&self) -> u32 {
         self.year
     }
@@ -91,6 +96,7 @@ impl SummaryMonth {
 }
 
 #[derive(Debug, Builder)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct Summary {
     month: SummaryMonth,
     office_days: usize,

@@ -6,19 +6,46 @@ use std::{
     str::FromStr,
 };
 
+use chrono::NaiveDate;
+use itertools::Itertools;
+
 use crate::{
     error::{Error, Result},
-    model::Record,
+    model::{Record, State},
 };
 
 const XDG_DATA_HOME: &str = "XDG_DATA_HOME";
 const DIRECTORY: &str = "attendance-cli";
 const FILE_NAME: &str = "attendance.log";
 
+pub struct Records {
+    records: Vec<Record>,
+}
+
+impl Records {
+    pub fn into_inner(self) -> Vec<Record> {
+        self.records
+    }
+
+    pub fn contains(&self, date: &NaiveDate) -> bool {
+        let records_on_day: Vec<&Record> = self
+            .records
+            .iter()
+            .filter(|r| r.date() == date)
+            .sorted_by_key(|r| r.created())
+            .collect();
+
+        records_on_day
+            .last()
+            .filter(|r| r.state() != &State::Delete)
+            .is_some()
+    }
+}
+
 pub trait Repository {
     fn add(&self, record: Record) -> Result<()>;
 
-    fn get(&self) -> Result<Vec<Record>>;
+    fn get(&self) -> Result<Records>;
 }
 
 pub struct FileRepository {
@@ -84,7 +111,7 @@ impl Repository for FileRepository {
         Ok(())
     }
 
-    fn get(&self) -> Result<Vec<Record>> {
+    fn get(&self) -> Result<Records> {
         self.init()?;
         let file = File::open(&self.path).map_err(|e| Error::ReadFailure(e.to_string()))?;
         let reader = BufReader::new(file);
@@ -98,6 +125,6 @@ impl Repository for FileRepository {
             records.push(record);
         }
 
-        Ok(records)
+        Ok(Records { records })
     }
 }

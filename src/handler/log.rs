@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, Utc};
+use chrono::Utc;
 use uuid::Uuid;
 
 use crate::{
@@ -12,26 +12,17 @@ pub fn log(args: &cli::LogArgs, repository: &dyn Repository) -> Result<()> {
     let records = repository.get()?;
     let record = record_from(args);
 
-    let includes_date = includes_date(&records, record.date());
-
-    if includes_date && !args.append() {
-        Err(Error::RecordExistsForDate(record.date().to_owned()))
-    } else {
-        repository.add(record)
+    match (records.contains(record.date()), args.state()) {
+        (false, State::Create) => repository.add(record),
+        (true, State::Append | State::Delete) => repository.add(record),
+        (true, State::Create) => Err(Error::RecordExistsForDate(record.date().to_owned())),
+        (false, State::Append) => Err(Error::NoRecordToAppend(record.date().to_owned())),
+        (false, State::Delete) => Err(Error::NoRecordToDelete(record.date().to_owned())),
     }
-}
-
-fn includes_date(records: &[Record], date: &NaiveDate) -> bool {
-    records.iter().any(|r| r.date() == date)
 }
 
 fn record_from(args: &cli::LogArgs) -> Record {
     let created = Utc::now();
-    let state = if args.delete() {
-        State::Delete
-    } else {
-        State::Create
-    };
     let record_type = args
         .exclusion()
         .map_or(RecordType::Office, |e| RecordType::from(e.to_owned()));
@@ -39,7 +30,7 @@ fn record_from(args: &cli::LogArgs) -> Record {
     Record::builder()
         .id(Uuid::new_v4())
         .created(created)
-        .state(state)
+        .state(args.state())
         .record_type(record_type)
         .date(args.date().copied().unwrap_or_else(|| created.date_naive()))
         .maybe_description(args.description().cloned())

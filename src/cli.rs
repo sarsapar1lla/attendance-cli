@@ -1,6 +1,8 @@
 use chrono::NaiveDate;
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 
+use crate::model::State;
+
 #[derive(Parser)]
 #[command(name = env!("CARGO_PKG_NAME"))]
 #[command(version = env!("CARGO_PKG_VERSION"))]
@@ -56,12 +58,13 @@ impl LogArgs {
         self.description.as_ref()
     }
 
-    pub fn append(&self) -> bool {
-        self.flags.append
-    }
-
-    pub fn delete(&self) -> bool {
-        self.flags.delete
+    pub fn state(&self) -> State {
+        match (self.flags.append, self.flags.delete) {
+            (false, false) => State::Create,
+            (true, false) => State::Append,
+            (false, true) => State::Delete,
+            _ => unreachable!("Clap makes this impossible"),
+        }
     }
 }
 

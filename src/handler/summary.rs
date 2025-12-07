@@ -38,6 +38,7 @@ impl<'a> Handler<'a> {
         let months = self.last_n_months(number_of_months);
         let records = self.repository.get()?;
         let filtered: Vec<Record> = records
+            .into_inner()
             .into_iter()
             .filter(|r| Handler::record_in_months(r, &months))
             .collect();
@@ -126,6 +127,7 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
         .count();
 
     let attendance = (office_days as f32) / workdays as f32;
+    let attendance = (attendance * 1000.0).round() / 1000.0;
 
     Summary::builder()
         .month(month)
@@ -140,7 +142,7 @@ mod tests {
     use super::*;
 
     mod summarise_tests {
-        use chrono::TimeZone;
+        use chrono::{Month, TimeZone};
         use uuid::Uuid;
 
         use super::*;
@@ -153,10 +155,22 @@ mod tests {
                 actual,
                 vec![
                     Summary::builder()
-                        .month(SummaryMonth::new(2025, Month::September))
-                        .office_days(23)
-                        .workdays(1)
-                        .attendance(0.12)
+                        .month(SummaryMonth::from_parts(2025, Month::September))
+                        .office_days(1)
+                        .workdays(22)
+                        .attendance(0.045)
+                        .build(),
+                    Summary::builder()
+                        .month(SummaryMonth::from_parts(2025, Month::October))
+                        .office_days(1)
+                        .workdays(23)
+                        .attendance(0.043)
+                        .build(),
+                    Summary::builder()
+                        .month(SummaryMonth::from_parts(2025, Month::November))
+                        .office_days(1)
+                        .workdays(20)
+                        .attendance(0.05)
                         .build()
                 ]
             )
@@ -226,7 +240,7 @@ mod tests {
                 record(6, RecordType::Office),
             ];
             let actual = summarise_month(month, &records);
-            assert_eq!(actual.attendance(), 0.13043478)
+            assert_eq!(actual.attendance(), 0.13)
         }
 
         fn record(day: u32, record_type: RecordType) -> Record {

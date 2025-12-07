@@ -6,8 +6,10 @@ use chrono::NaiveDate;
 pub enum Error {
     Io(String),
     ReadFailure(String),
-    RecordExistsForDate(NaiveDate),
     WriteFailure(String),
+    RecordExistsForDate(NaiveDate),
+    NoRecordToAppend(NaiveDate),
+    NoRecordToDelete(NaiveDate),
 }
 
 impl Display for Error {
@@ -15,11 +17,19 @@ impl Display for Error {
         match self {
             Self::Io(message) => write!(f, "Io error: {message}"),
             Self::ReadFailure(message) => write!(f, "Failed to read log file: {message}"),
+            Self::WriteFailure(message) => write!(f, "Failed to write to log file: {message}"),
             Self::RecordExistsForDate(date) => write!(
                 f,
                 "Record exists for date '{date}'. To append an existing record, use the `--append` flag."
             ),
-            Self::WriteFailure(message) => write!(f, "Failed to write to log file: {message}"),
+            Self::NoRecordToAppend(date) => write!(
+                f,
+                "Cannot append record for date '{date}' as no record exists."
+            ),
+            Self::NoRecordToDelete(date) => write!(
+                f,
+                "Cannot delete record for date '{date}' as no record exists."
+            ),
         }
     }
 }

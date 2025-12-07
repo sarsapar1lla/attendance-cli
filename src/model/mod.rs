@@ -8,6 +8,7 @@ use uuid::Uuid;
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub enum State {
     Create,
+    Append,
     Delete,
 }
 

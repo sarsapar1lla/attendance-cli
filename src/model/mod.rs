@@ -44,10 +44,6 @@ pub struct Record {
 }
 
 impl Record {
-    pub fn id(&self) -> &Uuid {
-        &self.id
-    }
-
     pub fn created(&self) -> &DateTime<Utc> {
         &self.created
     }

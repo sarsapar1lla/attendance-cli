@@ -1,10 +1,19 @@
+use std::sync::LazyLock;
+
 use chrono::{Duration, DurationRound};
 use comfy_table::{
     Attribute, Cell, CellAlignment, ContentArrangement, Table, modifiers::UTF8_ROUND_CORNERS,
     presets::UTF8_FULL_CONDENSED,
 };
 
+use crate::model::State;
 use crate::model::{Record, Summary};
+
+static NULL_CELL: LazyLock<Cell> = LazyLock::new(|| {
+    Cell::new("null")
+        .add_attributes(vec![Attribute::Dim, Attribute::Italic])
+        .set_alignment(CellAlignment::Center)
+});
 
 pub trait RecordPrinter {
     fn print(&self, records: &[Record]);
@@ -30,34 +39,32 @@ impl RecordPrinter for TableRecordPrinter {
 impl TableRecordPrinter {
     fn header() -> Vec<Cell> {
         vec![
-            header_cell("Id"),
-            header_cell("Created"),
-            header_cell("State"),
-            header_cell("Record Type"),
-            header_cell("Record Date"),
+            header_cell("Date"),
+            header_cell("Log Type"),
             header_cell("Description"),
+            header_cell("Modifier"),
+            header_cell("Logged"),
         ]
     }
 
     fn row_from(record: &Record) -> Vec<Cell> {
+        let modifier = match record.state() {
+            State::Create => NULL_CELL.clone(),
+            State::Append => Cell::new("Append"),
+            State::Delete => Cell::new("Delete"),
+        };
         vec![
-            Cell::new(record.id()),
+            Cell::new(record.date()),
+            Cell::new(record.record_type()),
+            record
+                .description()
+                .map_or_else(|| NULL_CELL.clone(), Cell::new),
+            modifier,
             Cell::new(
                 record
                     .created()
                     .duration_trunc(Duration::seconds(1))
                     .unwrap(),
-            ),
-            Cell::new(record.state()),
-            Cell::new(record.record_type()),
-            Cell::new(record.date()),
-            record.description().map_or_else(
-                || {
-                    Cell::new("null")
-                        .add_attributes(vec![Attribute::Dim, Attribute::Italic])
-                        .set_alignment(CellAlignment::Center)
-                },
-                Cell::new,
             ),
         ]
     }

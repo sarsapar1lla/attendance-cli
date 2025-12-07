@@ -11,12 +11,13 @@ use crate::{
     repository::Repository,
 };
 
-static BANK_HOLIDAYS: LazyLock<Vec<NaiveDate>> = LazyLock::new(|| {
-    vec![
-        NaiveDate::from_ymd_opt(2025, 12, 25).unwrap(),
-        NaiveDate::from_ymd_opt(2025, 12, 26).unwrap(),
-    ]
-});
+const BANK_HOLIDAY_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/data/bank_holidays.json"
+));
+
+static BANK_HOLIDAYS: LazyLock<Vec<NaiveDate>> =
+    LazyLock::new(|| serde_json::from_str(BANK_HOLIDAY_JSON).unwrap());
 
 pub struct Handler<'a> {
     repository: &'a dyn Repository,

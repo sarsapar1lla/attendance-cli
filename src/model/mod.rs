@@ -40,6 +40,7 @@ pub struct Record {
     state: State,
     record_type: RecordType,
     date: NaiveDate,
+    half_day: bool,
     description: Option<String>,
 }
 
@@ -58,6 +59,10 @@ impl Record {
 
     pub fn date(&self) -> &NaiveDate {
         &self.date
+    }
+
+    pub fn half_day(&self) -> bool {
+        self.half_day
     }
 
     pub fn description(&self) -> Option<&str> {
@@ -96,8 +101,8 @@ impl SummaryMonth {
 #[cfg_attr(test, derive(PartialEq))]
 pub struct Summary {
     month: SummaryMonth,
-    office_days: usize,
-    workdays: usize,
+    office_days: f32,
+    workdays: f32,
     attendance: f32,
 }
 
@@ -106,11 +111,11 @@ impl Summary {
         &self.month
     }
 
-    pub fn office_days(&self) -> usize {
+    pub fn office_days(&self) -> f32 {
         self.office_days
     }
 
-    pub fn workdays(&self) -> usize {
+    pub fn workdays(&self) -> f32 {
         self.workdays
     }
 

@@ -33,6 +33,7 @@ fn record_from(args: &cli::LogArgs) -> Record {
         .state(args.state())
         .record_type(record_type)
         .date(args.date().copied().unwrap_or_else(|| created.date_naive()))
+        .half_day(args.half_day())
         .maybe_description(args.description().cloned())
         .build()
 }

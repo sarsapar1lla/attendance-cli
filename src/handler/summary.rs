@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::{collections::HashMap, sync::LazyLock};
 
 use chrono::{DateTime, Datelike, Months, NaiveDate, Utc, Weekday};
 use itertools::{Itertools, any};
@@ -106,10 +106,10 @@ fn summarise(records: Vec<Record>) -> Vec<Summary> {
 }
 
 fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
-    let excluded: Vec<&NaiveDate> = records
+    let excluded: HashMap<&NaiveDate, f32> = records
         .iter()
         .filter(|r| r.record_type() != &RecordType::Office)
-        .map(Record::date)
+        .map(|r| (r.date(), if r.half_day() { 0.5 } else { 0.0 }))
         .collect();
 
     let workdays =
@@ -119,22 +119,23 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
             .take_while(|date| date.month() == month.month().number_from_month())
             .filter(|date| ![Weekday::Sat, Weekday::Sun].contains(&date.weekday())) // Exclude weekends
             .filter(|date| !BANK_HOLIDAYS.contains(date)) // Not a bank holiday
-            .filter(|date| !excluded.contains(&date)) // Apply exclusions
-            .count();
+            .map(|date| excluded.get(&date).unwrap_or(&1.0))
+            .sum();
 
     let office_days = records
         .iter()
         .filter(|r| r.record_type() == &RecordType::Office)
-        .count();
+        .map(|r| if r.half_day() { 0.5 } else { 1.0 })
+        .sum();
 
-    let attendance = (office_days as f32) / workdays as f32;
-    let attendance = (attendance * 1000.0).round() / 1000.0;
+    let raw_attendance: f32 = office_days / workdays;
+    let rounded_attendance = (raw_attendance * 1000.0).round() / 1000.0;
 
     Summary::builder()
         .month(month)
         .office_days(office_days)
         .workdays(workdays)
-        .attendance(attendance)
+        .attendance(rounded_attendance)
         .build()
 }
 
@@ -157,20 +158,20 @@ mod tests {
                 vec![
                     Summary::builder()
                         .month(SummaryMonth::from_parts(2025, Month::September))
-                        .office_days(1)
-                        .workdays(22)
+                        .office_days(1.0)
+                        .workdays(22.0)
                         .attendance(0.045)
                         .build(),
                     Summary::builder()
                         .month(SummaryMonth::from_parts(2025, Month::October))
-                        .office_days(1)
-                        .workdays(23)
+                        .office_days(1.0)
+                        .workdays(23.0)
                         .attendance(0.043)
                         .build(),
                     Summary::builder()
                         .month(SummaryMonth::from_parts(2025, Month::November))
-                        .office_days(1)
-                        .workdays(20)
+                        .office_days(1.0)
+                        .workdays(20.0)
                         .attendance(0.05)
                         .build()
                 ]
@@ -184,6 +185,7 @@ mod tests {
                 .state(State::Create)
                 .record_type(RecordType::Office)
                 .date(NaiveDate::from_ymd_opt(2025, month, 1).unwrap())
+                .half_day(false)
                 .build()
         }
     }
@@ -203,14 +205,14 @@ mod tests {
                 record(6, RecordType::Office),
             ];
             let actual = summarise_month(month, &records);
-            assert_eq!(actual.office_days(), 3)
+            assert_eq!(actual.office_days(), 3.0)
         }
 
         #[test]
         fn counts_workdays() {
             let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 10, 1).unwrap());
             let actual = summarise_month(month, &[]);
-            assert_eq!(actual.workdays(), 23)
+            assert_eq!(actual.workdays(), 23.0)
         }
 
         #[test]
@@ -222,14 +224,14 @@ mod tests {
                 record(6, RecordType::Sick),
             ];
             let actual = summarise_month(month, &records);
-            assert_eq!(actual.workdays(), 20)
+            assert_eq!(actual.workdays(), 20.0)
         }
 
         #[test]
         fn counts_workdays_excluding_bank_holidays() {
             let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap());
             let actual = summarise_month(month, &[]);
-            assert_eq!(actual.workdays(), 21)
+            assert_eq!(actual.workdays(), 21.0)
         }
 
         #[test]
@@ -251,6 +253,7 @@ mod tests {
                 .state(State::Create)
                 .record_type(record_type)
                 .date(NaiveDate::from_ymd_opt(2025, 10, day).unwrap())
+                .half_day(false)
                 .build()
         }
     }

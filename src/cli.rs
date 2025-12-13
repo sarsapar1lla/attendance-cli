@@ -38,6 +38,9 @@ pub struct LogArgs {
     #[arg(long)]
     date: Option<NaiveDate>,
 
+    #[arg(long, action = ArgAction::SetTrue)]
+    half_day: bool,
+
     #[arg(long)]
     description: Option<String>,
 
@@ -52,6 +55,10 @@ impl LogArgs {
 
     pub fn date(&self) -> Option<&NaiveDate> {
         self.date.as_ref()
+    }
+
+    pub fn half_day(&self) -> bool {
+        self.half_day
     }
 
     pub fn description(&self) -> Option<&String> {

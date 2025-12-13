@@ -6,7 +6,6 @@ use comfy_table::{
     presets::UTF8_FULL_CONDENSED,
 };
 
-use crate::model::State;
 use crate::model::{Record, Summary};
 
 static NULL_CELL: LazyLock<Cell> = LazyLock::new(|| {
@@ -40,26 +39,23 @@ impl TableRecordPrinter {
     fn header() -> Vec<Cell> {
         vec![
             header_cell("Date"),
-            header_cell("Log Type"),
+            header_cell("Where?"),
+            header_cell("Half Day?"),
             header_cell("Description"),
-            header_cell("Modifier"),
+            header_cell("State"),
             header_cell("Logged"),
         ]
     }
 
     fn row_from(record: &Record) -> Vec<Cell> {
-        let modifier = match record.state() {
-            State::Create => NULL_CELL.clone(),
-            State::Append => Cell::new("Append"),
-            State::Delete => Cell::new("Delete"),
-        };
         vec![
             Cell::new(record.date()),
             Cell::new(record.record_type()),
+            Cell::new(record.half_day()),
             record
                 .description()
                 .map_or_else(|| NULL_CELL.clone(), Cell::new),
-            modifier,
+            Cell::new(record.state()),
             Cell::new(
                 record
                     .created()

@@ -1,23 +1,16 @@
-use std::{collections::HashMap, sync::LazyLock};
+use std::collections::HashMap;
 
-use chrono::{DateTime, Datelike, Months, NaiveDate, Utc, Weekday};
+use chrono::{DateTime, Datelike, Months, NaiveDate, Utc};
 use itertools::{Itertools, any};
 
 use crate::{
     cli::{self},
     error::Result,
-    model::{Record, RecordType, State, Summary, SummaryMonth},
+    handler::day,
+    model::{Category, Record, RecordType, State, Summary, SummaryMonth},
     printer::SummaryPrinter,
     repository::Repository,
 };
-
-const BANK_HOLIDAY_JSON: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/data/bank_holidays.json"
-));
-
-static BANK_HOLIDAYS: LazyLock<Vec<NaiveDate>> =
-    LazyLock::new(|| serde_json::from_str(BANK_HOLIDAY_JSON).unwrap());
 
 pub struct Handler<'a> {
     repository: &'a dyn Repository,
@@ -117,8 +110,7 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
             .unwrap()
             .iter_days()
             .take_while(|date| date.month() == month.month().number_from_month())
-            .filter(|date| ![Weekday::Sat, Weekday::Sun].contains(&date.weekday())) // Exclude weekends
-            .filter(|date| !BANK_HOLIDAYS.contains(date)) // Not a bank holiday
+            .filter(|date| day::category(date) == Category::Workday)
             .map(|date| excluded.get(&date).unwrap_or(&1.0))
             .sum();
 
@@ -128,14 +120,14 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
         .map(|r| if r.half_day() { 0.5 } else { 1.0 })
         .sum();
 
-    let raw_attendance: f32 = office_days / workdays;
-    let rounded_attendance = (raw_attendance * 1000.0).round() / 1000.0;
+    let attendance: f32 = office_days / workdays;
+    let attendance = (attendance * 1000.0).round() / 1000.0;
 
     Summary::builder()
         .month(month)
         .office_days(office_days)
         .workdays(workdays)
-        .attendance(rounded_attendance)
+        .attendance(attendance)
         .build()
 }
 

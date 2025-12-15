@@ -1,9 +1,16 @@
 use std::fmt::Display;
 
 use bon::Builder;
-use chrono::{DateTime, Datelike, Month, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, Month, NaiveDate, Utc, Weekday};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+#[derive(Debug, PartialEq)]
+pub enum Category {
+    Workday,
+    Weekend(Weekday),
+    BankHoliday,
+}
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub enum State {

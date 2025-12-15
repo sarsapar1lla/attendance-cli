@@ -4,13 +4,23 @@ use uuid::Uuid;
 use crate::{
     cli::{self, Exclusion},
     error::{Error, Result},
-    model::{Record, RecordType, State},
+    handler::day,
+    model::{Category, Record, RecordType, State},
     repository::Repository,
 };
 
 pub fn log(args: &cli::LogArgs, repository: &dyn Repository) -> Result<()> {
     let records = repository.get()?;
     let record = record_from(args);
+
+    let day_category = day::category(record.date());
+
+    match day_category {
+        Category::BankHoliday | Category::Weekend(_) => {
+            Err(Error::NotAWorkday(record.date().to_owned(), day_category))
+        }
+        Category::Workday => Ok(()),
+    }?;
 
     match (records.contains(record.date()), args.state()) {
         (false, State::Create) => repository.add(record),
@@ -32,7 +42,7 @@ fn record_from(args: &cli::LogArgs) -> Record {
         .created(created)
         .state(args.state())
         .record_type(record_type)
-        .date(args.date().copied().unwrap_or_else(|| created.date_naive()))
+        .date(args.date().cloned().unwrap_or_else(|| created.date_naive()))
         .half_day(args.half_day())
         .maybe_description(args.description().cloned())
         .build()

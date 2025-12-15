@@ -26,6 +26,6 @@ fn main() {
 
     match result {
         Ok(()) => {}
-        Err(error) => println!("{error}"),
+        Err(error) => println!("Error: {error}"),
     }
 }

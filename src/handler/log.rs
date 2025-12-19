@@ -58,13 +58,12 @@ impl From<Exclusion> for RecordType {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
 
     use chrono::NaiveDate;
 
     use crate::{
         cli::{LogArgs, LogFlags},
-        repository::Records,
+        repository::InMemoryRepository,
     };
 
     use super::*;
@@ -251,37 +250,5 @@ mod tests {
             .date(date)
             .half_day(false)
             .build()
-    }
-
-    struct InMemoryRepository {
-        records: Mutex<Vec<Record>>,
-    }
-
-    impl InMemoryRepository {
-        fn new(records: &[Record]) -> Self {
-            Self {
-                records: Mutex::new(records.to_vec()),
-            }
-        }
-
-        fn records(&self) -> Vec<(NaiveDate, State)> {
-            self.get()
-                .unwrap()
-                .into_inner()
-                .into_iter()
-                .map(|r| (r.date().to_owned(), r.state().to_owned()))
-                .collect()
-        }
-    }
-
-    impl Repository for InMemoryRepository {
-        fn add(&self, record: Record) -> Result<()> {
-            self.records.lock().unwrap().push(record);
-            Ok(())
-        }
-
-        fn get(&self) -> Result<Records> {
-            Ok(Records::new(self.records.lock().unwrap().to_vec()))
-        }
     }
 }

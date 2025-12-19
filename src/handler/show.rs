@@ -23,3 +23,13 @@ pub fn show(
     printer.print(truncated);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn returns_error_if_cannot_access_repository() {
+        // TODO
+        assert!(true)
+    }
+}

@@ -133,3 +133,38 @@ impl Repository for FileRepository {
         Ok(Records { records })
     }
 }
+
+#[cfg(test)]
+pub struct InMemoryRepository {
+    records: std::sync::Mutex<Vec<Record>>,
+}
+
+#[cfg(test)]
+impl InMemoryRepository {
+    pub fn new(records: &[Record]) -> Self {
+        Self {
+            records: std::sync::Mutex::new(records.to_vec()),
+        }
+    }
+
+    pub fn records(&self) -> Vec<(NaiveDate, State)> {
+        self.get()
+            .unwrap()
+            .into_inner()
+            .into_iter()
+            .map(|r| (r.date().to_owned(), r.state().to_owned()))
+            .collect()
+    }
+}
+
+#[cfg(test)]
+impl Repository for InMemoryRepository {
+    fn add(&self, record: Record) -> Result<()> {
+        self.records.lock().unwrap().push(record);
+        Ok(())
+    }
+
+    fn get(&self) -> Result<Records> {
+        Ok(Records::new(self.records.lock().unwrap().to_vec()))
+    }
+}

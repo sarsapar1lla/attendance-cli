@@ -23,6 +23,11 @@ pub struct Records {
 }
 
 impl Records {
+    #[cfg(test)]
+    pub fn new(records: Vec<Record>) -> Self {
+        Self { records }
+    }
+
     pub fn into_inner(self) -> Vec<Record> {
         self.records
     }

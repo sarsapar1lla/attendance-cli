@@ -1,3 +1,6 @@
+#[cfg(test)]
+use bon::Builder;
+
 use chrono::NaiveDate;
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 
@@ -31,6 +34,7 @@ pub enum Command {
 }
 
 #[derive(Debug, Args)]
+#[cfg_attr(test, derive(Builder))]
 pub struct LogArgs {
     #[arg(long)]
     exclusion: Option<Exclusion>,
@@ -93,8 +97,9 @@ pub enum Exclusion {
 }
 
 #[derive(Debug, Args)]
+#[cfg_attr(test, derive(Builder))]
 #[group(required = false, multiple = false)]
-struct LogFlags {
+pub struct LogFlags {
     #[arg(short, long, action = ArgAction::SetTrue)]
     append: bool,
 

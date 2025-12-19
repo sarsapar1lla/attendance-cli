@@ -1,14 +1,20 @@
 use std::fmt::Display;
 
 use bon::Builder;
-use chrono::{DateTime, Datelike, Month, NaiveDate, Utc, Weekday};
+use chrono::{DateTime, Datelike, Month, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, PartialEq)]
+pub enum WeekendDay {
+    Saturday,
+    Sunday,
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Category {
     Workday,
-    Weekend(Weekday),
+    Weekend(WeekendDay),
     BankHoliday,
 }
 

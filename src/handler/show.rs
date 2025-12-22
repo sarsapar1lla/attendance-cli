@@ -13,7 +13,6 @@ pub fn show(
     let records = repository.get()?;
 
     let sorted: Vec<Record> = records
-        .into_inner()
         .into_iter()
         .sorted_by(|a, b| a.created().cmp(b.created()).reverse())
         .collect();

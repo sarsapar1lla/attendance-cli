@@ -61,8 +61,7 @@ pub enum Key {
 impl Key {
     pub fn date(&self) -> NaiveDate {
         match *self {
-            Key::FullDay(date) => date,
-            Key::HalfDay { date, half: _ } => date,
+            Key::FullDay(date) | Key::HalfDay { date, half: _ } => date,
         }
     }
 

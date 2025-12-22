@@ -1,5 +1,6 @@
 mod day;
 mod log;
+mod records;
 mod show;
 pub mod summary;
 

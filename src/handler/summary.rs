@@ -32,7 +32,6 @@ impl<'a> Handler<'a> {
         let months = self.last_n_months(number_of_months);
         let records = self.repository.get()?;
         let filtered: Vec<Record> = records
-            .into_inner()
             .into_iter()
             .filter(|r| Handler::record_in_months(r, &months))
             .collect();

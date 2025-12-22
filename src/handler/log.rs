@@ -4,13 +4,14 @@ use uuid::Uuid;
 use crate::{
     cli::{self},
     error::{Error, Result},
-    handler::day,
+    handler::{day, records::Records},
     model::{Category, Key, Mode, Record},
     repository::Repository,
 };
 
 pub fn log(args: &cli::log::Arguments, repository: &dyn Repository) -> Result<()> {
     let records = repository.get()?;
+    let records = Records::new(records);
     let record = record_from(args);
 
     let date = record.key().date();

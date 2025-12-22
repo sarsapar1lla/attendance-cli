@@ -5,7 +5,7 @@ use crate::{
     cli::{self},
     error::{Error, Result},
     handler::day,
-    model::{Category, Mode, Record},
+    model::{Category, Key, Mode, Record},
     repository::Repository,
 };
 
@@ -13,15 +13,16 @@ pub fn log(args: &cli::log::Arguments, repository: &dyn Repository) -> Result<()
     let records = repository.get()?;
     let record = record_from(args);
 
-    let day_category = day::category(record.date());
+    let date = record.key().date();
+    let day_category = day::category(&date);
 
     match day_category {
-        Category::BankHoliday => Err(Error::IsBankHoliday(record.date().to_owned())),
-        Category::Weekend(day) => Err(Error::IsWeekend(record.date().to_owned(), day)),
-        Category::Workday => match (records.contains(record.date()), args.mode()) {
-            (true, Mode::Create) => Err(Error::RecordExistsForDate(record.date().to_owned())),
-            (false, Mode::Append) => Err(Error::NoRecordToAppend(record.date().to_owned())),
-            (false, Mode::Delete) => Err(Error::NoRecordToDelete(record.date().to_owned())),
+        Category::BankHoliday => Err(Error::IsBankHoliday(date)),
+        Category::Weekend(day) => Err(Error::IsWeekend(date, day)),
+        Category::Workday => match (records.contains(record.key()), args.mode()) {
+            (true, Mode::Create) => Err(Error::RecordExistsForDate(date)),
+            (false, Mode::Append) => Err(Error::NoRecordToAppend(date)),
+            (false, Mode::Delete) => Err(Error::NoRecordToDelete(date)),
             (false, Mode::Create) | (true, Mode::Append | Mode::Delete) => repository.add(record),
         },
     }
@@ -29,13 +30,17 @@ pub fn log(args: &cli::log::Arguments, repository: &dyn Repository) -> Result<()
 
 fn record_from(args: &cli::log::Arguments) -> Record {
     let created = Utc::now();
+    let date = args.date().copied().unwrap_or_else(|| created.date_naive());
+    let key = match args.half_day() {
+        None => Key::FullDay(date),
+        Some(half) => Key::HalfDay { date, half },
+    };
     Record::builder()
         .id(Uuid::new_v4())
         .created(created)
         .mode(args.mode())
         .record_type(args.record_type())
-        .date(args.date().copied().unwrap_or_else(|| created.date_naive()))
-        .half_day(args.half_day())
+        .key(key)
         .maybe_description(args.description().cloned())
         .build()
 }
@@ -48,7 +53,7 @@ mod tests {
     use crate::{
         cli::log::{self, Arguments},
         model::RecordType,
-        repository::tests::{FailingRepository, InMemoryRepository},
+        repository::test_utils::{FailingRepository, InMemoryRepository},
     };
 
     use super::*;
@@ -57,7 +62,6 @@ mod tests {
     fn returns_error_if_cannot_access_repository() {
         let args = Arguments::builder()
             .record_type(log::RecordType::WorkingFromHome)
-            .half_day(false)
             .mode(log::Mode::Create)
             .build();
         let result = log(&args, &FailingRepository);
@@ -155,7 +159,6 @@ mod tests {
             Arguments::builder()
                 .record_type(log::RecordType::WorkingFromHome)
                 .date(record_date)
-                .half_day(false)
                 .mode(log::Mode::Create)
                 .build()
         }
@@ -193,7 +196,6 @@ mod tests {
             Arguments::builder()
                 .record_type(log::RecordType::WorkingFromHome)
                 .date(record_date)
-                .half_day(false)
                 .mode(log::Mode::Append)
                 .build()
         }
@@ -231,7 +233,6 @@ mod tests {
             Arguments::builder()
                 .record_type(log::RecordType::WorkingFromHome)
                 .date(record_date)
-                .half_day(false)
                 .mode(log::Mode::Delete)
                 .build()
         }
@@ -247,8 +248,7 @@ mod tests {
             .created(Utc::now())
             .mode(mode)
             .record_type(RecordType::WorkingFromHome)
-            .date(date)
-            .half_day(false)
+            .key(Key::FullDay(date))
             .build()
     }
 }

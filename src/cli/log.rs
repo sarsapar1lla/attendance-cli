@@ -1,5 +1,5 @@
 use chrono::NaiveDate;
-use clap::{ArgAction, Args, ValueEnum};
+use clap::{Args, ValueEnum};
 
 use crate::model;
 
@@ -15,8 +15,8 @@ pub struct Arguments {
     )]
     date: Option<NaiveDate>,
 
-    #[arg(long, action = ArgAction::SetTrue)]
-    half_day: bool,
+    #[arg(long, value_enum)]
+    half_day: Option<HalfDay>,
 
     #[arg(long)]
     description: Option<String>,
@@ -40,8 +40,12 @@ impl Arguments {
         self.date.as_ref()
     }
 
-    pub fn half_day(&self) -> bool {
-        self.half_day
+    pub fn half_day(&self) -> Option<model::HalfDay> {
+        match self.half_day {
+            None => None,
+            Some(HalfDay::Am) => Some(model::HalfDay::Am),
+            Some(HalfDay::Pm) => Some(model::HalfDay::Pm),
+        }
     }
 
     pub fn description(&self) -> Option<&String> {
@@ -82,6 +86,13 @@ impl Default for RecordType {
     fn default() -> Self {
         Self::Office
     }
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+#[cfg_attr(test, derive(PartialEq))]
+pub enum HalfDay {
+    Am,
+    Pm,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -138,7 +149,6 @@ mod tests {
         fn args(record_type: RecordType) -> Arguments {
             Arguments::builder()
                 .record_type(record_type)
-                .half_day(false)
                 .mode(Mode::Create)
                 .build()
         }
@@ -168,7 +178,6 @@ mod tests {
         fn args(mode: Mode) -> Arguments {
             Arguments::builder()
                 .record_type(RecordType::Office)
-                .half_day(false)
                 .mode(mode)
                 .build()
         }

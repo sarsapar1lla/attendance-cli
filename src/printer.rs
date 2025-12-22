@@ -6,7 +6,7 @@ use comfy_table::{
     presets::UTF8_FULL_CONDENSED,
 };
 
-use crate::model::{Record, Summary};
+use crate::model::{HalfDay, Key, Record, Summary};
 
 static NULL_CELL: LazyLock<Cell> = LazyLock::new(|| {
     Cell::new("null")
@@ -48,10 +48,21 @@ impl TableRecordPrinter {
     }
 
     fn row_from(record: &Record) -> Vec<Cell> {
+        let (date, half_day) = match *record.key() {
+            Key::FullDay(date) => (Cell::new(date), NULL_CELL.clone()),
+            Key::HalfDay {
+                date,
+                half: HalfDay::Am,
+            } => (Cell::new(date), Cell::new("Morning")),
+            Key::HalfDay {
+                date,
+                half: HalfDay::Pm,
+            } => (Cell::new(date), Cell::new("Afternoon")),
+        };
         vec![
-            Cell::new(record.date()),
+            date,
             Cell::new(record.record_type()),
-            Cell::new(record.half_day()),
+            half_day.set_alignment(CellAlignment::Center),
             record
                 .description()
                 .map_or_else(|| NULL_CELL.clone(), Cell::new),

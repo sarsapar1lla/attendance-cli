@@ -39,8 +39,10 @@ impl<'a> Handler<'a> {
 
         let dates = filtered
             .into_iter()
-            .sorted_by(|a, b| Ord::cmp(a.date(), b.date()).then(Ord::cmp(a.created(), b.created())))
-            .chunk_by(|r| *r.date());
+            .sorted_by(|a, b| {
+                Ord::cmp(&a.key().date(), &b.key().date()).then(Ord::cmp(a.created(), b.created()))
+            })
+            .chunk_by(|r| r.key().date());
 
         let deduplicated: Vec<Record> = dates
             .into_iter()
@@ -83,7 +85,7 @@ impl<'a> Handler<'a> {
     }
 
     fn record_in_months(record: &Record, months: &[SummaryMonth]) -> bool {
-        let month = SummaryMonth::new(*record.date());
+        let month = SummaryMonth::new(record.key().date());
         months.contains(&month)
     }
 }
@@ -91,7 +93,7 @@ impl<'a> Handler<'a> {
 fn summarise(records: Vec<Record>) -> Vec<Summary> {
     let months = records
         .into_iter()
-        .chunk_by(|r| SummaryMonth::new(*r.date()));
+        .chunk_by(|r| SummaryMonth::new(r.key().date()));
     months
         .into_iter()
         .map(|month| summarise_month(month.0, month.1.collect_vec().as_slice()))
@@ -99,10 +101,10 @@ fn summarise(records: Vec<Record>) -> Vec<Summary> {
 }
 
 fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
-    let excluded: HashMap<&NaiveDate, f32> = records
+    let excluded: HashMap<NaiveDate, f32> = records
         .iter()
         .filter(|r| r.record_type() != &RecordType::Office)
-        .map(|r| (r.date(), if r.half_day() { 0.5 } else { 0.0 }))
+        .map(|r| (r.key().date(), if r.key().half_day() { 0.5 } else { 0.0 }))
         .collect();
 
     let workdays = NaiveDate::from_ymd_opt(
@@ -120,7 +122,7 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
     let office_days = records
         .iter()
         .filter(|r| r.record_type() == &RecordType::Office)
-        .map(|r| if r.half_day() { 0.5 } else { 1.0 })
+        .map(|r| if r.key().half_day() { 0.5 } else { 1.0 })
         .sum();
 
     let attendance: f32 = office_days / workdays;
@@ -141,6 +143,8 @@ mod tests {
     mod summarise_tests {
         use chrono::{Month, TimeZone};
         use uuid::Uuid;
+
+        use crate::model::Key;
 
         use super::*;
 
@@ -179,8 +183,9 @@ mod tests {
                 .created(Utc.with_ymd_and_hms(2025, 10, 31, 10, 0, 0).unwrap())
                 .mode(Mode::Create)
                 .record_type(RecordType::Office)
-                .date(NaiveDate::from_ymd_opt(2025, month, 1).unwrap())
-                .half_day(false)
+                .key(Key::FullDay(
+                    NaiveDate::from_ymd_opt(2025, month, 1).unwrap(),
+                ))
                 .build()
         }
     }
@@ -188,6 +193,8 @@ mod tests {
     mod summarise_month_tests {
         use chrono::TimeZone;
         use uuid::Uuid;
+
+        use crate::model::Key;
 
         use super::*;
 
@@ -247,8 +254,9 @@ mod tests {
                 .created(Utc.with_ymd_and_hms(2025, 10, 31, 10, 0, 0).unwrap())
                 .mode(Mode::Create)
                 .record_type(record_type)
-                .date(NaiveDate::from_ymd_opt(2025, 10, day).unwrap())
-                .half_day(false)
+                .key(Key::FullDay(
+                    NaiveDate::from_ymd_opt(2025, 10, day).unwrap(),
+                ))
                 .build()
         }
     }

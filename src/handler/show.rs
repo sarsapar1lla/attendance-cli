@@ -36,8 +36,8 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
-        model::{Mode, RecordType},
-        repository::tests::{FailingRepository, InMemoryRepository},
+        model::{Key, Mode, RecordType},
+        repository::test_utils::{FailingRepository, InMemoryRepository},
     };
 
     use super::*;
@@ -100,8 +100,7 @@ mod tests {
             .created(created)
             .mode(Mode::Create)
             .record_type(RecordType::Office)
-            .date(created.date_naive())
-            .half_day(false)
+            .key(Key::FullDay(created.date_naive()))
             .build()
     }
 

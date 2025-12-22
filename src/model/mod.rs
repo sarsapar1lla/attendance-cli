@@ -46,6 +46,34 @@ impl Display for RecordType {
     }
 }
 
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+pub enum HalfDay {
+    Am,
+    Pm,
+}
+
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+pub enum Key {
+    FullDay(NaiveDate),
+    HalfDay { date: NaiveDate, half: HalfDay },
+}
+
+impl Key {
+    pub fn date(&self) -> NaiveDate {
+        match *self {
+            Key::FullDay(date) => date,
+            Key::HalfDay { date, half: _ } => date,
+        }
+    }
+
+    pub fn half_day(&self) -> bool {
+        match *self {
+            Key::FullDay(_) => false,
+            Key::HalfDay { .. } => true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Builder, Deserialize, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct Record {
@@ -53,8 +81,7 @@ pub struct Record {
     created: DateTime<Utc>,
     mode: Mode,
     record_type: RecordType,
-    date: NaiveDate,
-    half_day: bool,
+    key: Key,
     description: Option<String>,
 }
 
@@ -71,12 +98,8 @@ impl Record {
         &self.record_type
     }
 
-    pub fn date(&self) -> &NaiveDate {
-        &self.date
-    }
-
-    pub fn half_day(&self) -> bool {
-        self.half_day
+    pub fn key(&self) -> &Key {
+        &self.key
     }
 
     pub fn description(&self) -> Option<&str> {

@@ -42,7 +42,7 @@ impl TableRecordPrinter {
             header_cell("Where?"),
             header_cell("Half Day?"),
             header_cell("Description"),
-            header_cell("State"),
+            header_cell("Mode"),
             header_cell("Logged"),
         ]
     }
@@ -55,7 +55,7 @@ impl TableRecordPrinter {
             record
                 .description()
                 .map_or_else(|| NULL_CELL.clone(), Cell::new),
-            Cell::new(record.state()),
+            Cell::new(record.mode()),
             Cell::new(
                 record
                     .created()

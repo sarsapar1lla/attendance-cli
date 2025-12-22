@@ -1,9 +1,12 @@
 use itertools::Itertools;
 
-use crate::{cli, error::Result, model::Record, printer::RecordPrinter, repository::Repository};
+use crate::{
+    cli::show::Arguments, error::Result, model::Record, printer::RecordPrinter,
+    repository::Repository,
+};
 
 pub fn show(
-    args: &cli::ShowArgs,
+    args: &Arguments,
     repository: &dyn Repository,
     printer: &dyn RecordPrinter,
 ) -> Result<()> {
@@ -33,8 +36,7 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
-        cli::ShowArgs,
-        model::{RecordType, State},
+        model::{Mode, RecordType},
         repository::tests::{FailingRepository, InMemoryRepository},
     };
 
@@ -43,7 +45,7 @@ mod tests {
     #[test]
     fn returns_error_if_cannot_access_repository() {
         let result = show(
-            &ShowArgs::builder().build(),
+            &Arguments::builder().build(),
             &FailingRepository,
             &InMemoryPrinter::new(),
         );
@@ -57,7 +59,7 @@ mod tests {
         let fourth = record(25);
         let third = record(20);
 
-        let args = ShowArgs::builder().build();
+        let args = Arguments::builder().build();
         let repository = InMemoryRepository::new(&[
             first.clone(),
             second.clone(),
@@ -78,7 +80,7 @@ mod tests {
         let fourth = record(25);
         let third = record(20);
 
-        let args = ShowArgs::builder().top(2).build();
+        let args = Arguments::builder().top(2).build();
         let repository = InMemoryRepository::new(&[first, second, fourth.clone(), third.clone()]);
         let printer = InMemoryPrinter::new();
 
@@ -96,7 +98,7 @@ mod tests {
         Record::builder()
             .id(Uuid::new_v4())
             .created(created)
-            .state(State::Create)
+            .mode(Mode::Create)
             .record_type(RecordType::Office)
             .date(created.date_naive())
             .half_day(false)

@@ -11,7 +11,7 @@ use itertools::Itertools;
 
 use crate::{
     error::{Error, Result},
-    model::{Record, State},
+    model::{Mode, Record},
 };
 
 const XDG_DATA_HOME: &str = "XDG_DATA_HOME";
@@ -42,7 +42,7 @@ impl Records {
 
         records_on_day
             .last()
-            .filter(|r| r.state() != &State::Delete)
+            .filter(|r| r.mode() != &Mode::Delete)
             .is_some()
     }
 }
@@ -149,12 +149,12 @@ pub mod tests {
             }
         }
 
-        pub fn records(&self) -> Vec<(NaiveDate, State)> {
+        pub fn records(&self) -> Vec<(NaiveDate, Mode)> {
             self.get()
                 .unwrap()
                 .into_inner()
                 .into_iter()
-                .map(|r| (r.date().to_owned(), r.state().to_owned()))
+                .map(|r| (r.date().to_owned(), r.mode().to_owned()))
                 .collect()
         }
     }

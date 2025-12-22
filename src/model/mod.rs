@@ -19,13 +19,13 @@ pub enum Category {
 }
 
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
-pub enum State {
+pub enum Mode {
     Create,
     Append,
     Delete,
 }
 
-impl Display for State {
+impl Display for Mode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
@@ -51,7 +51,7 @@ impl Display for RecordType {
 pub struct Record {
     id: Uuid,
     created: DateTime<Utc>,
-    state: State,
+    mode: Mode,
     record_type: RecordType,
     date: NaiveDate,
     half_day: bool,
@@ -63,8 +63,8 @@ impl Record {
         &self.created
     }
 
-    pub fn state(&self) -> &State {
-        &self.state
+    pub fn mode(&self) -> &Mode {
+        &self.mode
     }
 
     pub fn record_type(&self) -> &RecordType {

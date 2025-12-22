@@ -1,7 +1,8 @@
-use chrono::NaiveDate;
-use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 
-use crate::model::State;
+pub mod log;
+pub mod show;
+pub mod summary;
 
 #[derive(Debug, Parser)]
 #[command(name = env!("CARGO_PKG_NAME"))]
@@ -22,114 +23,13 @@ impl Cli {
 #[cfg_attr(test, derive(PartialEq))]
 pub enum Command {
     /// Log attendance
-    Log(LogArgs),
+    Log(log::Arguments),
 
     /// Show log
-    Show(ShowArgs),
+    Show(show::Arguments),
 
     /// Summarise attendance
-    Summary(SummaryArgs),
-}
-
-#[derive(Debug, Args)]
-#[cfg_attr(test, derive(PartialEq, bon::Builder))]
-pub struct LogArgs {
-    #[arg(long)]
-    exclusion: Option<Exclusion>,
-
-    #[arg(long)]
-    date: Option<NaiveDate>,
-
-    #[arg(long, action = ArgAction::SetTrue)]
-    half_day: bool,
-
-    #[arg(long)]
-    description: Option<String>,
-
-    #[command(flatten)]
-    flags: LogFlags,
-}
-
-impl LogArgs {
-    pub fn exclusion(&self) -> Option<&Exclusion> {
-        self.exclusion.as_ref()
-    }
-
-    pub fn date(&self) -> Option<&NaiveDate> {
-        self.date.as_ref()
-    }
-
-    pub fn half_day(&self) -> bool {
-        self.half_day
-    }
-
-    pub fn description(&self) -> Option<&String> {
-        self.description.as_ref()
-    }
-
-    pub fn state(&self) -> State {
-        match (self.flags.append, self.flags.delete) {
-            (false, false) => State::Create,
-            (true, false) => State::Append,
-            (false, true) => State::Delete,
-            _ => unreachable!("Clap makes this impossible"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, ValueEnum)]
-#[cfg_attr(test, derive(PartialEq))]
-pub enum Exclusion {
-    /// Authorised working from home
-    #[clap(name = "wfh")]
-    WorkingFromHome,
-
-    /// Annual leave
-    #[clap(name = "al")]
-    AnnualLeave,
-
-    /// Sick day
-    Sick,
-
-    /// Other
-    Other,
-}
-
-#[derive(Debug, Args)]
-#[cfg_attr(test, derive(PartialEq, bon::Builder))]
-#[group(required = false, multiple = false)]
-pub struct LogFlags {
-    #[arg(short, long, action = ArgAction::SetTrue)]
-    append: bool,
-
-    #[arg(long, action = ArgAction::SetTrue)]
-    delete: bool,
-}
-
-#[derive(Debug, Args)]
-#[cfg_attr(test, derive(PartialEq, bon::Builder))]
-pub struct ShowArgs {
-    #[arg(long)]
-    top: Option<usize>,
-}
-
-impl ShowArgs {
-    pub fn top(&self) -> Option<usize> {
-        self.top
-    }
-}
-
-#[derive(Debug, Args)]
-#[cfg_attr(test, derive(PartialEq))]
-pub struct SummaryArgs {
-    #[arg(long)]
-    months: Option<usize>,
-}
-
-impl SummaryArgs {
-    pub fn months(&self) -> Option<usize> {
-        self.months
-    }
+    Summary(summary::Arguments),
 }
 
 #[cfg(test)]
@@ -137,17 +37,18 @@ mod tests {
     use super::*;
 
     mod log_tests {
+        use chrono::NaiveDate;
+
+        use crate::cli::log::{Arguments, Exclusion, Mode};
+
         use super::*;
 
         #[test]
         fn parses_with_no_args() {
             let args = Cli::try_parse_from(&["attendance", "log"]).unwrap();
-            let expected = LogArgs::builder()
+            let expected = Arguments::builder()
                 .half_day(false)
-                .flags(LogFlags {
-                    append: false,
-                    delete: false,
-                })
+                .mode(Mode::Create)
                 .build();
             assert_eq!(args.command(), &Command::Log(expected))
         }
@@ -159,13 +60,10 @@ mod tests {
             fn parses_with_exclusion() {
                 let args =
                     Cli::try_parse_from(&["attendance", "log", "--exclusion", "wfh"]).unwrap();
-                let expected = LogArgs::builder()
+                let expected = Arguments::builder()
                     .exclusion(Exclusion::WorkingFromHome)
                     .half_day(false)
-                    .flags(LogFlags {
-                        append: false,
-                        delete: false,
-                    })
+                    .mode(Mode::Create)
                     .build();
                 assert_eq!(args.command(), &Command::Log(expected))
             }
@@ -184,13 +82,10 @@ mod tests {
             fn parses_with_date() {
                 let args =
                     Cli::try_parse_from(&["attendance", "log", "--date", "2025-12-01"]).unwrap();
-                let expected = LogArgs::builder()
+                let expected = Arguments::builder()
                     .date(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap())
                     .half_day(false)
-                    .flags(LogFlags {
-                        append: false,
-                        delete: false,
-                    })
+                    .mode(Mode::Create)
                     .build();
                 assert_eq!(args.command(), &Command::Log(expected))
             }
@@ -205,12 +100,9 @@ mod tests {
         #[test]
         fn parses_with_half_day() {
             let args = Cli::try_parse_from(&["attendance", "log", "--half-day"]).unwrap();
-            let expected = LogArgs::builder()
+            let expected = Arguments::builder()
                 .half_day(true)
-                .flags(LogFlags {
-                    append: false,
-                    delete: false,
-                })
+                .mode(Mode::Create)
                 .build();
             assert_eq!(args.command(), &Command::Log(expected))
         }
@@ -219,47 +111,42 @@ mod tests {
         fn parses_with_description() {
             let args =
                 Cli::try_parse_from(&["attendance", "log", "--description", "Party!"]).unwrap();
-            let expected = LogArgs::builder()
+            let expected = Arguments::builder()
                 .description("Party!".into())
                 .half_day(false)
-                .flags(LogFlags {
-                    append: false,
-                    delete: false,
-                })
+                .mode(Mode::Create)
+                .build();
+            assert_eq!(args.command(), &Command::Log(expected))
+        }
+
+        #[test]
+        fn parses_with_create() {
+            let args = Cli::try_parse_from(&["attendance", "log", "--mode", "create"]).unwrap();
+            let expected = Arguments::builder()
+                .half_day(false)
+                .mode(Mode::Create)
                 .build();
             assert_eq!(args.command(), &Command::Log(expected))
         }
 
         #[test]
         fn parses_with_append() {
-            let args = Cli::try_parse_from(&["attendance", "log", "--append"]).unwrap();
-            let expected = LogArgs::builder()
+            let args = Cli::try_parse_from(&["attendance", "log", "--mode", "append"]).unwrap();
+            let expected = Arguments::builder()
                 .half_day(false)
-                .flags(LogFlags {
-                    append: true,
-                    delete: false,
-                })
+                .mode(Mode::Append)
                 .build();
             assert_eq!(args.command(), &Command::Log(expected))
         }
 
         #[test]
         fn parses_with_delete() {
-            let args = Cli::try_parse_from(&["attendance", "log", "--delete"]).unwrap();
-            let expected = LogArgs::builder()
+            let args = Cli::try_parse_from(&["attendance", "log", "--mode", "delete"]).unwrap();
+            let expected = Arguments::builder()
                 .half_day(false)
-                .flags(LogFlags {
-                    append: false,
-                    delete: true,
-                })
+                .mode(Mode::Delete)
                 .build();
             assert_eq!(args.command(), &Command::Log(expected))
-        }
-
-        #[test]
-        fn returns_error_if_append_and_delete_passed() {
-            let result = Cli::try_parse_from(&["attendance", "log", "--append", "--delete"]);
-            assert!(result.is_err())
         }
 
         #[test]
@@ -274,39 +161,37 @@ mod tests {
                 "--half-day",
                 "--description",
                 "Monza",
-                "--append",
+                "--mode",
+                "append",
             ])
             .unwrap();
-            let expected = LogArgs::builder()
+            let expected = Arguments::builder()
                 .exclusion(Exclusion::AnnualLeave)
                 .date(NaiveDate::from_ymd_opt(2025, 12, 3).unwrap())
                 .half_day(true)
                 .description("Monza".into())
-                .flags(LogFlags {
-                    append: true,
-                    delete: false,
-                })
+                .mode(Mode::Append)
                 .build();
             assert_eq!(args.command(), &Command::Log(expected))
         }
     }
 
     mod show_tests {
+        use crate::cli::show::Arguments;
+
         use super::*;
 
         #[test]
         fn parses_with_no_args() {
             let args = Cli::try_parse_from(&["attendance", "show"]).unwrap();
-            let expected = ShowArgs { top: Option::None };
+            let expected = Arguments::builder().build();
             assert_eq!(args.command(), &Command::Show(expected))
         }
 
         #[test]
         fn parses_with_top() {
             let args = Cli::try_parse_from(&["attendance", "show", "--top", "10"]).unwrap();
-            let expected = ShowArgs {
-                top: Option::Some(10),
-            };
+            let expected = Arguments::builder().top(10).build();
             assert_eq!(args.command(), &Command::Show(expected))
         }
 
@@ -318,23 +203,21 @@ mod tests {
     }
 
     mod summary_tests {
+        use crate::cli::summary::Arguments;
+
         use super::*;
 
         #[test]
         fn parses_with_no_args() {
             let args = Cli::try_parse_from(&["attendance", "summary"]).unwrap();
-            let expected = SummaryArgs {
-                months: Option::None,
-            };
+            let expected = Arguments::builder().build();
             assert_eq!(args.command(), &Command::Summary(expected))
         }
 
         #[test]
         fn parses_with_months() {
             let args = Cli::try_parse_from(&["attendance", "summary", "--months", "3"]).unwrap();
-            let expected = SummaryArgs {
-                months: Option::Some(3),
-            };
+            let expected = Arguments::builder().months(3).build();
             assert_eq!(args.command(), &Command::Summary(expected))
         }
 

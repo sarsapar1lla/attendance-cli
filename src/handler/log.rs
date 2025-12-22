@@ -2,14 +2,14 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use crate::{
-    cli::{self, Exclusion},
+    cli::{self, log::Exclusion},
     error::{Error, Result},
     handler::day,
-    model::{Category, Record, RecordType, State},
+    model::{Category, Mode, Record, RecordType},
     repository::Repository,
 };
 
-pub fn log(args: &cli::LogArgs, repository: &dyn Repository) -> Result<()> {
+pub fn log(args: &cli::log::Arguments, repository: &dyn Repository) -> Result<()> {
     let records = repository.get()?;
     let record = record_from(args);
 
@@ -18,17 +18,17 @@ pub fn log(args: &cli::LogArgs, repository: &dyn Repository) -> Result<()> {
     match day_category {
         Category::BankHoliday => Err(Error::IsBankHoliday(record.date().to_owned())),
         Category::Weekend(day) => Err(Error::IsWeekend(record.date().to_owned(), day)),
-        Category::Workday => match (records.contains(record.date()), args.state()) {
-            (false, State::Create) => repository.add(record),
-            (true, State::Append | State::Delete) => repository.add(record),
-            (true, State::Create) => Err(Error::RecordExistsForDate(record.date().to_owned())),
-            (false, State::Append) => Err(Error::NoRecordToAppend(record.date().to_owned())),
-            (false, State::Delete) => Err(Error::NoRecordToDelete(record.date().to_owned())),
+        Category::Workday => match (records.contains(record.date()), args.mode()) {
+            (false, Mode::Create) => repository.add(record),
+            (true, Mode::Append | Mode::Delete) => repository.add(record),
+            (true, Mode::Create) => Err(Error::RecordExistsForDate(record.date().to_owned())),
+            (false, Mode::Append) => Err(Error::NoRecordToAppend(record.date().to_owned())),
+            (false, Mode::Delete) => Err(Error::NoRecordToDelete(record.date().to_owned())),
         },
     }
 }
 
-fn record_from(args: &cli::LogArgs) -> Record {
+fn record_from(args: &cli::log::Arguments) -> Record {
     let created = Utc::now();
     let record_type = args
         .exclusion()
@@ -37,7 +37,7 @@ fn record_from(args: &cli::LogArgs) -> Record {
     Record::builder()
         .id(Uuid::new_v4())
         .created(created)
-        .state(args.state())
+        .mode(args.mode())
         .record_type(record_type)
         .date(args.date().cloned().unwrap_or_else(|| created.date_naive()))
         .half_day(args.half_day())
@@ -62,7 +62,7 @@ mod tests {
     use chrono::NaiveDate;
 
     use crate::{
-        cli::{LogArgs, LogFlags},
+        cli::{log, log::Arguments},
         repository::tests::{FailingRepository, InMemoryRepository},
     };
 
@@ -70,9 +70,9 @@ mod tests {
 
     #[test]
     fn returns_error_if_cannot_access_repository() {
-        let args = LogArgs::builder()
+        let args = Arguments::builder()
             .half_day(false)
-            .flags(LogFlags::builder().append(false).delete(false).build())
+            .mode(log::Mode::Create)
             .build();
         let result = log(&args, &FailingRepository);
 
@@ -124,7 +124,7 @@ mod tests {
         fn returns_error_if_record_exits_for_day() {
             let record_date = date(12);
             let args = args(record_date);
-            let repository = InMemoryRepository::new(&[record(record_date, State::Create)]);
+            let repository = InMemoryRepository::new(&[record(record_date, Mode::Create)]);
 
             let result = log(&args, &repository);
             assert_eq!(result.unwrap_err(), Error::RecordExistsForDate(record_date))
@@ -134,13 +134,13 @@ mod tests {
         fn adds_record_to_repository_if_not_present() {
             let record_date = date(12);
             let args = args(record_date);
-            let repository = InMemoryRepository::new(&[record(date(11), State::Create)]);
+            let repository = InMemoryRepository::new(&[record(date(11), Mode::Create)]);
 
             log(&args, &repository).unwrap();
 
             assert_eq!(
                 repository.records(),
-                vec![(date(11), State::Create), (date(12), State::Create)]
+                vec![(date(11), Mode::Create), (date(12), Mode::Create)]
             )
         }
 
@@ -149,8 +149,8 @@ mod tests {
             let record_date = date(12);
             let args = args(record_date);
             let repository = InMemoryRepository::new(&[
-                record(date(11), State::Create),
-                record(record_date, State::Delete),
+                record(date(11), Mode::Create),
+                record(record_date, Mode::Delete),
             ]);
 
             log(&args, &repository).unwrap();
@@ -158,18 +158,18 @@ mod tests {
             assert_eq!(
                 repository.records(),
                 vec![
-                    (date(11), State::Create),
-                    (date(12), State::Delete),
-                    (date(12), State::Create)
+                    (date(11), Mode::Create),
+                    (date(12), Mode::Delete),
+                    (date(12), Mode::Create)
                 ]
             )
         }
 
-        fn args(record_date: NaiveDate) -> LogArgs {
-            LogArgs::builder()
+        fn args(record_date: NaiveDate) -> Arguments {
+            Arguments::builder()
                 .date(record_date)
                 .half_day(false)
-                .flags(LogFlags::builder().append(false).delete(false).build())
+                .mode(log::Mode::Create)
                 .build()
         }
     }
@@ -192,21 +192,21 @@ mod tests {
         fn appends_existing_record() {
             let record_date = date(12);
             let args = args(record_date);
-            let repository = InMemoryRepository::new(&[record(record_date, State::Create)]);
+            let repository = InMemoryRepository::new(&[record(record_date, Mode::Create)]);
 
             log(&args, &repository).unwrap();
 
             assert_eq!(
                 repository.records(),
-                vec![(date(12), State::Create), (date(12), State::Append)]
+                vec![(date(12), Mode::Create), (date(12), Mode::Append)]
             )
         }
 
-        fn args(record_date: NaiveDate) -> LogArgs {
-            LogArgs::builder()
+        fn args(record_date: NaiveDate) -> Arguments {
+            Arguments::builder()
                 .date(record_date)
                 .half_day(false)
-                .flags(LogFlags::builder().append(true).delete(false).build())
+                .mode(log::Mode::Append)
                 .build()
         }
     }
@@ -229,21 +229,21 @@ mod tests {
         fn deletes_existing_record() {
             let record_date = date(12);
             let args = args(record_date);
-            let repository = InMemoryRepository::new(&[record(record_date, State::Create)]);
+            let repository = InMemoryRepository::new(&[record(record_date, Mode::Create)]);
 
             log(&args, &repository).unwrap();
 
             assert_eq!(
                 repository.records(),
-                vec![(date(12), State::Create), (date(12), State::Delete)]
+                vec![(date(12), Mode::Create), (date(12), Mode::Delete)]
             )
         }
 
-        fn args(record_date: NaiveDate) -> LogArgs {
-            LogArgs::builder()
+        fn args(record_date: NaiveDate) -> Arguments {
+            Arguments::builder()
                 .date(record_date)
                 .half_day(false)
-                .flags(LogFlags::builder().append(false).delete(true).build())
+                .mode(log::Mode::Delete)
                 .build()
         }
     }
@@ -277,11 +277,11 @@ mod tests {
         NaiveDate::from_ymd_opt(2025, 12, day).unwrap()
     }
 
-    fn record(date: NaiveDate, state: State) -> Record {
+    fn record(date: NaiveDate, mode: Mode) -> Record {
         Record::builder()
             .id(Uuid::new_v4())
             .created(Utc::now())
-            .state(state)
+            .mode(mode)
             .record_type(RecordType::WorkingFromHome)
             .date(date)
             .half_day(false)

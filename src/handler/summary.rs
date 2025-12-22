@@ -4,10 +4,10 @@ use chrono::{DateTime, Datelike, Months, NaiveDate, Utc};
 use itertools::{Itertools, any};
 
 use crate::{
-    cli::{self},
+    cli::summary::Arguments,
     error::Result,
     handler::day,
-    model::{Category, Record, RecordType, State, Summary, SummaryMonth},
+    model::{Category, Mode, Record, RecordType, Summary, SummaryMonth},
     printer::SummaryPrinter,
     repository::Repository,
 };
@@ -27,7 +27,7 @@ impl<'a> Handler<'a> {
         }
     }
 
-    pub fn summary(&self, args: &cli::SummaryArgs) -> Result<()> {
+    pub fn summary(&self, args: &Arguments) -> Result<()> {
         let number_of_months = args.months().unwrap_or(1);
         let months = self.last_n_months(number_of_months);
         let records = self.repository.get()?;
@@ -46,7 +46,7 @@ impl<'a> Handler<'a> {
             .into_iter()
             .filter_map(|records| match records.1.last() {
                 None => None,
-                Some(record) if record.state() == &State::Delete => None,
+                Some(record) if record.mode() == &Mode::Delete => None,
                 Some(record) => Some(record),
             })
             .collect();
@@ -174,7 +174,7 @@ mod tests {
             Record::builder()
                 .id(Uuid::parse_str("0a766a52-c869-4be5-a695-4b258e2f2e87").unwrap())
                 .created(Utc.with_ymd_and_hms(2025, 10, 31, 10, 0, 0).unwrap())
-                .state(State::Create)
+                .mode(Mode::Create)
                 .record_type(RecordType::Office)
                 .date(NaiveDate::from_ymd_opt(2025, month, 1).unwrap())
                 .half_day(false)
@@ -242,7 +242,7 @@ mod tests {
             Record::builder()
                 .id(Uuid::parse_str("0a766a52-c869-4be5-a695-4b258e2f2e87").unwrap())
                 .created(Utc.with_ymd_and_hms(2025, 10, 31, 10, 0, 0).unwrap())
-                .state(State::Create)
+                .mode(Mode::Create)
                 .record_type(record_type)
                 .date(NaiveDate::from_ymd_opt(2025, 10, day).unwrap())
                 .half_day(false)

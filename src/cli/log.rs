@@ -6,8 +6,8 @@ use crate::model;
 #[derive(Debug, Args)]
 #[cfg_attr(test, derive(PartialEq, bon::Builder))]
 pub struct Arguments {
-    #[arg(long, value_enum)]
-    exclusion: Option<Exclusion>,
+    #[arg(long = "type", value_enum, default_value_t)]
+    record_type: RecordType,
 
     #[arg(long)]
     date: Option<NaiveDate>,
@@ -23,8 +23,14 @@ pub struct Arguments {
 }
 
 impl Arguments {
-    pub fn exclusion(&self) -> Option<&Exclusion> {
-        self.exclusion.as_ref()
+    pub fn record_type(&self) -> model::RecordType {
+        match self.record_type {
+            RecordType::Office => model::RecordType::Office,
+            RecordType::WorkingFromHome => model::RecordType::WorkingFromHome,
+            RecordType::AnnualLeave => model::RecordType::AnnualLeave,
+            RecordType::Sick => model::RecordType::Sick,
+            RecordType::Other => model::RecordType::Other,
+        }
     }
 
     pub fn date(&self) -> Option<&NaiveDate> {
@@ -50,7 +56,10 @@ impl Arguments {
 
 #[derive(Debug, Clone, ValueEnum)]
 #[cfg_attr(test, derive(PartialEq))]
-pub enum Exclusion {
+pub enum RecordType {
+    /// Office day
+    Office,
+
     /// Authorised working from home
     #[clap(name = "wfh")]
     WorkingFromHome,
@@ -66,6 +75,12 @@ pub enum Exclusion {
     Other,
 }
 
+impl Default for RecordType {
+    fn default() -> Self {
+        Self::Office
+    }
+}
+
 #[derive(Debug, Clone, ValueEnum)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum Mode {
@@ -77,5 +92,82 @@ pub enum Mode {
 impl Default for Mode {
     fn default() -> Self {
         Self::Create
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod record_type_tests {
+        use super::*;
+
+        #[test]
+        fn maps_office() {
+            let args = args(RecordType::Office);
+            assert_eq!(args.record_type(), model::RecordType::Office)
+        }
+
+        #[test]
+        fn maps_working_from_home() {
+            let args = args(RecordType::WorkingFromHome);
+            assert_eq!(args.record_type(), model::RecordType::WorkingFromHome)
+        }
+
+        #[test]
+        fn maps_annual_leave() {
+            let args = args(RecordType::AnnualLeave);
+            assert_eq!(args.record_type(), model::RecordType::AnnualLeave)
+        }
+
+        #[test]
+        fn maps_annual_sick() {
+            let args = args(RecordType::Sick);
+            assert_eq!(args.record_type(), model::RecordType::Sick)
+        }
+
+        #[test]
+        fn maps_annual_other() {
+            let args = args(RecordType::Other);
+            assert_eq!(args.record_type(), model::RecordType::Other)
+        }
+
+        fn args(record_type: RecordType) -> Arguments {
+            Arguments::builder()
+                .record_type(record_type)
+                .half_day(false)
+                .mode(Mode::Create)
+                .build()
+        }
+    }
+
+    mod mode_tests {
+        use super::*;
+
+        #[test]
+        fn maps_create() {
+            let args = args(Mode::Create);
+            assert_eq!(args.mode(), model::Mode::Create)
+        }
+
+        #[test]
+        fn maps_append() {
+            let args = args(Mode::Append);
+            assert_eq!(args.mode(), model::Mode::Append)
+        }
+
+        #[test]
+        fn maps_delete() {
+            let args = args(Mode::Delete);
+            assert_eq!(args.mode(), model::Mode::Delete)
+        }
+
+        fn args(mode: Mode) -> Arguments {
+            Arguments::builder()
+                .record_type(RecordType::Office)
+                .half_day(false)
+                .mode(mode)
+                .build()
+        }
     }
 }

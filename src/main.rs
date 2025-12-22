@@ -14,6 +14,8 @@ mod printer;
 mod repository;
 
 fn main() {
+    tracing_subscriber::fmt::init();
+
     let cli = Cli::parse();
     let repository = FileRepository::new();
     let summary_handler = handler::summary::Handler::new(&repository, &TableSummaryPrinter);
@@ -26,6 +28,6 @@ fn main() {
 
     match result {
         Ok(()) => {}
-        Err(error) => println!("Error: {error}"),
+        Err(error) => tracing::error!("{error}"),
     }
 }

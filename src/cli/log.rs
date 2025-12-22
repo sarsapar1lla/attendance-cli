@@ -9,7 +9,10 @@ pub struct Arguments {
     #[arg(long = "type", value_enum, default_value_t)]
     record_type: RecordType,
 
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Date to log. If not provided, today's date will be used."
+    )]
     date: Option<NaiveDate>,
 
     #[arg(long, action = ArgAction::SetTrue)]

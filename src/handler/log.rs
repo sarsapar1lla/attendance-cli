@@ -136,7 +136,7 @@ mod tests {
         }
 
         #[test]
-        fn adds_record_to_repository_if_not_latest_state_is_delete() {
+        fn adds_record_to_repository_if_not_latest_mode_is_delete() {
             let record_date = date(12);
             let args = args(record_date);
             let repository = InMemoryRepository::new(&[

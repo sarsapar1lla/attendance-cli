@@ -63,10 +63,21 @@ mod tests {
 
     use crate::{
         cli::{LogArgs, LogFlags},
-        repository::InMemoryRepository,
+        repository::tests::{FailingRepository, InMemoryRepository},
     };
 
     use super::*;
+
+    #[test]
+    fn returns_error_if_cannot_access_repository() {
+        let args = LogArgs::builder()
+            .half_day(false)
+            .flags(LogFlags::builder().append(false).delete(false).build())
+            .build();
+        let result = log(&args, &FailingRepository);
+
+        assert!(result.is_err())
+    }
 
     mod create_tests {
         use crate::model::WeekendDay;
@@ -235,6 +246,31 @@ mod tests {
                 .flags(LogFlags::builder().append(false).delete(true).build())
                 .build()
         }
+    }
+
+    #[test]
+    fn maps_exclusion_to_record_type() {
+        let exclusions = &[
+            Exclusion::WorkingFromHome,
+            Exclusion::AnnualLeave,
+            Exclusion::Sick,
+            Exclusion::Other,
+        ];
+
+        let record_types: Vec<RecordType> = exclusions
+            .iter()
+            .map(|e| RecordType::from(e.to_owned()))
+            .collect();
+
+        assert_eq!(
+            record_types,
+            vec![
+                RecordType::WorkingFromHome,
+                RecordType::AnnualLeave,
+                RecordType::Sick,
+                RecordType::Other
+            ]
+        )
     }
 
     fn date(day: u32) -> NaiveDate {

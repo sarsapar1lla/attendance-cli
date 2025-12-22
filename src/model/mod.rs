@@ -47,6 +47,7 @@ impl Display for RecordType {
 }
 
 #[derive(Debug, Clone, Builder, Deserialize, Serialize)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct Record {
     id: Uuid,
     created: DateTime<Utc>,

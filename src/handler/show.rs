@@ -27,9 +27,101 @@ pub fn show(
 #[cfg(test)]
 mod tests {
 
+    use std::sync::Mutex;
+
+    use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+    use uuid::Uuid;
+
+    use crate::{
+        cli::ShowArgs,
+        model::{RecordType, State},
+        repository::tests::{FailingRepository, InMemoryRepository},
+    };
+
+    use super::*;
+
     #[test]
     fn returns_error_if_cannot_access_repository() {
-        // TODO
-        assert!(true)
+        let result = show(
+            &ShowArgs::builder().build(),
+            &FailingRepository,
+            &InMemoryPrinter::new(),
+        );
+        assert!(result.is_err())
+    }
+
+    #[test]
+    fn prints_all_records_with_latest_first() {
+        let first = record(10);
+        let second = record(15);
+        let fourth = record(25);
+        let third = record(20);
+
+        let args = ShowArgs::builder().build();
+        let repository = InMemoryRepository::new(&[
+            first.clone(),
+            second.clone(),
+            fourth.clone(),
+            third.clone(),
+        ]);
+        let printer = InMemoryPrinter::new();
+
+        show(&args, &repository, &printer).unwrap();
+
+        assert_eq!(printer.printed(), vec![fourth, third, second, first])
+    }
+
+    #[test]
+    fn prints_top_n_records_with_latest_first() {
+        let first = record(10);
+        let second = record(15);
+        let fourth = record(25);
+        let third = record(20);
+
+        let args = ShowArgs::builder().top(2).build();
+        let repository = InMemoryRepository::new(&[first, second, fourth.clone(), third.clone()]);
+        let printer = InMemoryPrinter::new();
+
+        show(&args, &repository, &printer).unwrap();
+
+        assert_eq!(printer.printed(), vec![fourth, third])
+    }
+
+    fn record(minute: u32) -> Record {
+        let created = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2025, 12, 1).unwrap(),
+            NaiveTime::from_hms_opt(10, minute, 0).unwrap(),
+        )
+        .and_utc();
+        Record::builder()
+            .id(Uuid::new_v4())
+            .created(created)
+            .state(State::Create)
+            .record_type(RecordType::Office)
+            .date(created.date_naive())
+            .half_day(false)
+            .build()
+    }
+
+    struct InMemoryPrinter {
+        printed: Mutex<Vec<Record>>,
+    }
+
+    impl InMemoryPrinter {
+        fn new() -> Self {
+            Self {
+                printed: Mutex::new(Vec::new()),
+            }
+        }
+
+        fn printed(&self) -> Vec<Record> {
+            self.printed.lock().unwrap().to_vec()
+        }
+    }
+
+    impl RecordPrinter for InMemoryPrinter {
+        fn print(&self, records: &[Record]) {
+            self.printed.lock().unwrap().append(&mut records.to_vec());
+        }
     }
 }

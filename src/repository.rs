@@ -135,36 +135,50 @@ impl Repository for FileRepository {
 }
 
 #[cfg(test)]
-pub struct InMemoryRepository {
-    records: std::sync::Mutex<Vec<Record>>,
-}
+pub mod tests {
+    use super::*;
 
-#[cfg(test)]
-impl InMemoryRepository {
-    pub fn new(records: &[Record]) -> Self {
-        Self {
-            records: std::sync::Mutex::new(records.to_vec()),
+    pub struct InMemoryRepository {
+        records: std::sync::Mutex<Vec<Record>>,
+    }
+
+    impl InMemoryRepository {
+        pub fn new(records: &[Record]) -> Self {
+            Self {
+                records: std::sync::Mutex::new(records.to_vec()),
+            }
+        }
+
+        pub fn records(&self) -> Vec<(NaiveDate, State)> {
+            self.get()
+                .unwrap()
+                .into_inner()
+                .into_iter()
+                .map(|r| (r.date().to_owned(), r.state().to_owned()))
+                .collect()
         }
     }
 
-    pub fn records(&self) -> Vec<(NaiveDate, State)> {
-        self.get()
-            .unwrap()
-            .into_inner()
-            .into_iter()
-            .map(|r| (r.date().to_owned(), r.state().to_owned()))
-            .collect()
-    }
-}
+    impl Repository for InMemoryRepository {
+        fn add(&self, record: Record) -> Result<()> {
+            self.records.lock().unwrap().push(record);
+            Ok(())
+        }
 
-#[cfg(test)]
-impl Repository for InMemoryRepository {
-    fn add(&self, record: Record) -> Result<()> {
-        self.records.lock().unwrap().push(record);
-        Ok(())
+        fn get(&self) -> Result<Records> {
+            Ok(Records::new(self.records.lock().unwrap().to_vec()))
+        }
     }
 
-    fn get(&self) -> Result<Records> {
-        Ok(Records::new(self.records.lock().unwrap().to_vec()))
+    pub struct FailingRepository;
+
+    impl Repository for FailingRepository {
+        fn add(&self, _: Record) -> Result<()> {
+            Err(Error::WriteFailure("Failure".into()))
+        }
+
+        fn get(&self) -> Result<Records> {
+            Err(Error::ReadFailure("Failure".into()))
+        }
     }
 }

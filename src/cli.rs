@@ -107,7 +107,7 @@ pub struct LogFlags {
 }
 
 #[derive(Debug, Args)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, bon::Builder))]
 pub struct ShowArgs {
     #[arg(long)]
     top: Option<usize>,

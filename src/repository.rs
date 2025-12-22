@@ -73,7 +73,7 @@ impl FileRepository {
             Err(VarError::NotPresent) => home_dir()
                 .map(|home| [home, ".local/share".into()].iter().collect())
                 .unwrap(),
-            Err(error) => panic!("Invalid `{}` value: {}", XDG_DATA_HOME, error),
+            Err(error) => panic!("Invalid `{XDG_DATA_HOME}` value: {error}"),
         };
 
         [data_directory, DIRECTORY.into()].iter().collect()
@@ -84,7 +84,7 @@ impl FileRepository {
 
         if let Ok(false) = std::fs::exists(&self.path) {
             File::create_new(&self.path).map_err(|e| Error::Io(e.to_string()))?;
-        };
+        }
 
         Ok(())
     }

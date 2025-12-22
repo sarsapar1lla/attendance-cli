@@ -19,11 +19,10 @@ pub fn log(args: &cli::log::Arguments, repository: &dyn Repository) -> Result<()
         Category::BankHoliday => Err(Error::IsBankHoliday(record.date().to_owned())),
         Category::Weekend(day) => Err(Error::IsWeekend(record.date().to_owned(), day)),
         Category::Workday => match (records.contains(record.date()), args.mode()) {
-            (false, Mode::Create) => repository.add(record),
-            (true, Mode::Append | Mode::Delete) => repository.add(record),
             (true, Mode::Create) => Err(Error::RecordExistsForDate(record.date().to_owned())),
             (false, Mode::Append) => Err(Error::NoRecordToAppend(record.date().to_owned())),
             (false, Mode::Delete) => Err(Error::NoRecordToDelete(record.date().to_owned())),
+            (false, Mode::Create) | (true, Mode::Append | Mode::Delete) => repository.add(record),
         },
     }
 }
@@ -35,7 +34,7 @@ fn record_from(args: &cli::log::Arguments) -> Record {
         .created(created)
         .mode(args.mode())
         .record_type(args.record_type())
-        .date(args.date().cloned().unwrap_or_else(|| created.date_naive()))
+        .date(args.date().copied().unwrap_or_else(|| created.date_naive()))
         .half_day(args.half_day())
         .maybe_description(args.description().cloned())
         .build()

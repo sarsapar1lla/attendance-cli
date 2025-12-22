@@ -75,7 +75,7 @@ impl<'a> Handler<'a> {
         (0..n)
             .map(|months_back| {
                 today
-                    .checked_sub_months(Months::new(months_back as u32))
+                    .checked_sub_months(Months::new(u32::try_from(months_back).unwrap()))
                     .unwrap()
             })
             .map(SummaryMonth::new)
@@ -105,14 +105,17 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
         .map(|r| (r.date(), if r.half_day() { 0.5 } else { 0.0 }))
         .collect();
 
-    let workdays =
-        NaiveDate::from_ymd_opt(month.year() as i32, month.month().number_from_month(), 1)
-            .unwrap()
-            .iter_days()
-            .take_while(|date| date.month() == month.month().number_from_month())
-            .filter(|date| day::category(date) == Category::Workday)
-            .map(|date| excluded.get(&date).unwrap_or(&1.0))
-            .sum();
+    let workdays = NaiveDate::from_ymd_opt(
+        i32::try_from(month.year()).unwrap(),
+        month.month().number_from_month(),
+        1,
+    )
+    .unwrap()
+    .iter_days()
+    .take_while(|date| date.month() == month.month().number_from_month())
+    .filter(|date| day::category(date) == Category::Workday)
+    .map(|date| excluded.get(&date).unwrap_or(&1.0))
+    .sum();
 
     let office_days = records
         .iter()

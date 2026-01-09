@@ -90,7 +90,12 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
     let excluded: HashMap<NaiveDate, f32> = records
         .iter()
         .filter(|r| r.record_type() != &RecordType::Office)
-        .map(|r| (r.key().date(), if r.key().half_day() { 0.5 } else { 0.0 }))
+        .map(|r| {
+            (
+                r.key().date(),
+                if r.key().half_day() { 0.5f32 } else { 0.0f32 },
+            )
+        })
         .collect();
 
     let workdays = NaiveDate::from_ymd_opt(
@@ -102,18 +107,19 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
     .iter_days()
     .take_while(|date| date.month() == month.month().number_from_month())
     .filter(|date| day::category(date) == Category::Workday)
-    .map(|date| excluded.get(&date).unwrap_or(&1.0))
+    .map(|date| excluded.get(&date).unwrap_or(&1.0f32))
     .sum();
 
     let office_days = if records.is_empty() {
-        0.0
+        0.0f32
     } else {
         records
             .iter()
             .filter(|r| r.record_type() == &RecordType::Office)
-            .map(|_| 1.0)
+            .map(|_| 1.0f32)
             .sum()
-    };
+    }
+    .abs();
 
     let attendance: f32 = office_days / workdays;
     let attendance = (attendance * 1000.0).round() / 1000.0;

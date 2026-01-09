@@ -105,17 +105,37 @@ mod tests {
             }
         }
 
-        // TODO: refactor
-        // #[test]
-        // fn parses_with_half_day() {
-        //     let args = Cli::try_parse_from(&["attendance", "log", "--half-day"]).unwrap();
-        //     let expected = Arguments::builder()
-        //         .record_type(RecordType::Office)
-        //         .half_day(true)
-        //         .mode(Mode::Create)
-        //         .build();
-        //     assert_eq!(args.command(), &Command::Log(expected))
-        // }
+        mod half_day_tests {
+            use super::*;
+
+            #[test]
+            fn parses_with_am() {
+                let args = Cli::try_parse_from(&["attendance", "log", "--half-day", "am"]).unwrap();
+                let expected = Arguments::builder()
+                    .record_type(RecordType::Office)
+                    .half_day(HalfDay::Am)
+                    .mode(Mode::Create)
+                    .build();
+                assert_eq!(args.command(), &Command::Log(expected))
+            }
+
+            #[test]
+            fn parses_with_pm() {
+                let args = Cli::try_parse_from(&["attendance", "log", "--half-day", "pm"]).unwrap();
+                let expected = Arguments::builder()
+                    .record_type(RecordType::Office)
+                    .half_day(HalfDay::Pm)
+                    .mode(Mode::Create)
+                    .build();
+                assert_eq!(args.command(), &Command::Log(expected))
+            }
+
+            #[test]
+            fn returns_error_if_not_valid_half_day() {
+                let result = Cli::try_parse_from(&["attendance", "log", "--half-day", "invalid"]);
+                assert!(result.is_err())
+            }
+        }
 
         #[test]
         fn parses_with_description() {

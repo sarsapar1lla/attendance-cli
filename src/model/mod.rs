@@ -46,13 +46,13 @@ impl Display for RecordType {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum HalfDay {
     Am,
     Pm,
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum Key {
     FullDay(NaiveDate),
     HalfDay { date: NaiveDate, half: HalfDay },
@@ -107,6 +107,7 @@ impl Record {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(test, derive(Clone))]
 pub struct SummaryMonth {
     year: u32,
     month: Month,
@@ -134,7 +135,7 @@ impl SummaryMonth {
 }
 
 #[derive(Debug, Builder)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Clone))]
 pub struct Summary {
     month: SummaryMonth,
     office_days: f32,

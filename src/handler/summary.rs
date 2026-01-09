@@ -12,81 +12,68 @@ use crate::{
     repository::Repository,
 };
 
-pub struct Handler<'a> {
-    repository: &'a dyn Repository,
-    printer: &'a dyn SummaryPrinter,
+pub fn summary(
+    args: &Arguments,
+    repository: &dyn Repository,
+    printer: &dyn SummaryPrinter,
     now_fn: fn() -> DateTime<Utc>,
+) -> Result<()> {
+    let number_of_months = args.months().unwrap_or(1);
+    let months = last_n_months(number_of_months, now_fn);
+    let records = repository.get()?;
+    let filtered: Vec<Record> = records
+        .into_iter()
+        .filter(|r| record_in_months(r, &months))
+        .collect();
+
+    let keys = filtered
+        .into_iter()
+        .sorted_by(|a, b| a.key().cmp(b.key()).then(a.created().cmp(b.created())))
+        .chunk_by(|r| r.key().clone());
+
+    let deduplicated: Vec<Record> = keys
+        .into_iter()
+        .filter_map(|records| match records.1.last() {
+            None => None,
+            Some(record) if record.mode() == &Mode::Delete => None,
+            Some(record) => Some(record),
+        })
+        .collect();
+
+    let mut summaries = summarise(deduplicated);
+    let empty: Vec<Summary> = months
+        .into_iter()
+        .filter(|month| !any(&summaries, |summary| summary.month() == month))
+        .map(|month| summarise_month(month, &[]))
+        .collect();
+
+    summaries.extend(empty);
+
+    summaries.sort_by(|a, b| a.month().cmp(b.month()).reverse());
+
+    printer.print(&summaries);
+
+    Ok(())
 }
 
-impl<'a> Handler<'a> {
-    pub fn new(repository: &'a dyn Repository, printer: &'a dyn SummaryPrinter) -> Handler<'a> {
-        Self {
-            repository,
-            printer,
-            now_fn: Utc::now,
-        }
-    }
+fn last_n_months(n: usize, now_fn: fn() -> DateTime<Utc>) -> Vec<SummaryMonth> {
+    let today = (now_fn)()
+        .date_naive()
+        .with_day(1)
+        .expect("Every month has a first day");
+    (0..n)
+        .map(|months_back| {
+            today
+                .checked_sub_months(Months::new(u32::try_from(months_back).unwrap()))
+                .unwrap()
+        })
+        .map(SummaryMonth::new)
+        .collect()
+}
 
-    pub fn summary(&self, args: &Arguments) -> Result<()> {
-        let number_of_months = args.months().unwrap_or(1);
-        let months = self.last_n_months(number_of_months);
-        let records = self.repository.get()?;
-        let filtered: Vec<Record> = records
-            .into_iter()
-            .filter(|r| Handler::record_in_months(r, &months))
-            .collect();
-
-        let dates = filtered
-            .into_iter()
-            .sorted_by(|a, b| {
-                Ord::cmp(&a.key().date(), &b.key().date()).then(Ord::cmp(a.created(), b.created()))
-            })
-            .chunk_by(|r| r.key().date());
-
-        let deduplicated: Vec<Record> = dates
-            .into_iter()
-            .filter_map(|records| match records.1.last() {
-                None => None,
-                Some(record) if record.mode() == &Mode::Delete => None,
-                Some(record) => Some(record),
-            })
-            .collect();
-
-        let mut summaries = summarise(deduplicated);
-        let empty: Vec<Summary> = months
-            .into_iter()
-            .filter(|month| !any(&summaries, |summary| summary.month() == month))
-            .map(|month| summarise_month(month, &[]))
-            .collect();
-
-        summaries.extend(empty);
-
-        summaries.sort_by(|a, b| Ord::cmp(a.month(), b.month()).reverse());
-
-        self.printer.print(&summaries);
-
-        Ok(())
-    }
-
-    fn last_n_months(&self, n: usize) -> Vec<SummaryMonth> {
-        let today = (self.now_fn)()
-            .date_naive()
-            .with_day(1)
-            .expect("Every month has a first day");
-        (0..n)
-            .map(|months_back| {
-                today
-                    .checked_sub_months(Months::new(u32::try_from(months_back).unwrap()))
-                    .unwrap()
-            })
-            .map(SummaryMonth::new)
-            .collect()
-    }
-
-    fn record_in_months(record: &Record, months: &[SummaryMonth]) -> bool {
-        let month = SummaryMonth::new(record.key().date());
-        months.contains(&month)
-    }
+fn record_in_months(record: &Record, months: &[SummaryMonth]) -> bool {
+    let month = SummaryMonth::new(record.key().date());
+    months.contains(&month)
 }
 
 fn summarise(records: Vec<Record>) -> Vec<Summary> {
@@ -118,11 +105,15 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
     .map(|date| excluded.get(&date).unwrap_or(&1.0))
     .sum();
 
-    let office_days = records
-        .iter()
-        .filter(|r| r.record_type() == &RecordType::Office)
-        .map(|r| if r.key().half_day() { 0.5 } else { 1.0 })
-        .sum();
+    let office_days = if records.is_empty() {
+        0.0
+    } else {
+        records
+            .iter()
+            .filter(|r| r.record_type() == &RecordType::Office)
+            .map(|_| 1.0)
+            .sum()
+    };
 
     let attendance: f32 = office_days / workdays;
     let attendance = (attendance * 1000.0).round() / 1000.0;
@@ -137,7 +128,97 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
+    use chrono::{NaiveDateTime, NaiveTime};
+
+    use crate::repository::test_utils::{FailingRepository, InMemoryRepository};
+
     use super::*;
+
+    #[test]
+    fn returns_error_if_cannot_access_repository() {
+        let result = summary(
+            &Arguments::builder().build(),
+            &FailingRepository,
+            &InMemoryPrinter::new(),
+            Utc::now,
+        );
+
+        assert!(result.is_err())
+    }
+
+    #[test]
+    fn summarises_latest_month_when_no_records() {
+        let args = Arguments::builder().build();
+        let repository = InMemoryRepository::new(&[]);
+        let printer = InMemoryPrinter::new();
+
+        summary(&args, &repository, &printer, now).unwrap();
+
+        assert_eq!(
+            printer.printed(),
+            vec![
+                Summary::builder()
+                    .month(SummaryMonth::new(
+                        NaiveDate::from_ymd_opt(2025, 12, 1).unwrap()
+                    ))
+                    .office_days(0.0)
+                    .workdays(21.0)
+                    .attendance(0.0)
+                    .build()
+            ]
+        )
+    }
+
+    // #[test]
+    // fn summarises_latest_month() {
+    //     let args = Arguments::builder().build();
+    //     let repository = InMemoryRepository::new(&[Record::builder().build()]);
+    //     let printer = InMemoryPrinter::new();
+
+    //     summary(&args, &repository, &printer, now).unwrap();
+
+    //     assert_eq!(
+    //         printer.printed(),
+    //         vec![
+    //             Summary::builder()
+    //                 .month(SummaryMonth::new(
+    //                     NaiveDate::from_ymd_opt(2025, 12, 1).unwrap()
+    //                 ))
+    //                 .office_days(0.0)
+    //                 .workdays(21.0)
+    //                 .attendance(0.0)
+    //                 .build()
+    //         ]
+    //     )
+    // }
+
+    // #[test]
+    // fn summarises_latest_n_months() {
+    //     let args = Arguments::builder().months(2).build();
+    //     let created = Utc::now();
+    //     let repository = InMemoryRepository::new(&[Record::builder()
+    //         .id(Uuid::new_v4())
+    //         .created(created)
+    //         .mode(Mode::Create)
+    //         .record_type(RecordType::Office)
+    //         .key(Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 12).unwrap()))
+    //         .build()]);
+    //     let printer = InMemoryPrinter::new();
+
+    //     summary(&args, &repository, &printer, now).unwrap();
+
+    //     assert_eq!(printer.printed(), vec![])
+    // }
+
+    fn now() -> DateTime<Utc> {
+        NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2025, 12, 3).unwrap(),
+            NaiveTime::from_hms_opt(10, 0, 0).unwrap(),
+        )
+        .and_utc()
+    }
 
     mod summarise_tests {
         use chrono::{Month, TimeZone};
@@ -257,6 +338,28 @@ mod tests {
                     NaiveDate::from_ymd_opt(2025, 10, day).unwrap(),
                 ))
                 .build()
+        }
+    }
+
+    struct InMemoryPrinter {
+        printed: Mutex<Vec<Summary>>,
+    }
+
+    impl InMemoryPrinter {
+        fn new() -> Self {
+            Self {
+                printed: Mutex::new(Vec::new()),
+            }
+        }
+
+        fn printed(&self) -> Vec<Summary> {
+            self.printed.lock().unwrap().to_vec()
+        }
+    }
+
+    impl SummaryPrinter for InMemoryPrinter {
+        fn print(&self, summaries: &[Summary]) {
+            self.printed.lock().unwrap().append(&mut summaries.to_vec());
         }
     }
 }

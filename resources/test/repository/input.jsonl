@@ -1,0 +1,2 @@
+{"id": "0a766a52-c869-4be5-a695-4b258e2f2e87", "created": "2025-12-01T10:00:00Z", "mode": "Create", "record_type": "Office", "key": {"FullDay": "2025-12-01"}, "description": "Went to the office"}
+{"id": "ac404846-bca7-4a5e-9291-8296d3be3a37", "created": "2025-12-01T11:00:00Z", "mode": "Append", "record_type": "AnnualLeave", "key": {"FullDay": "2025-12-01"}, "description": "Went to the beach"}

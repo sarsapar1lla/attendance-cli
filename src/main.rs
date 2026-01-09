@@ -1,3 +1,4 @@
+use chrono::Utc;
 use clap::Parser;
 
 use crate::{
@@ -18,12 +19,13 @@ fn main() {
 
     let cli = Cli::parse();
     let repository = FileRepository::new();
-    let summary_handler = handler::summary::Handler::new(&repository, &TableSummaryPrinter);
 
     let result = match cli.command() {
         Command::Log(args) => handler::log(args, &repository),
         Command::Show(args) => handler::show(args, &repository, &TableRecordPrinter),
-        Command::Summary(args) => summary_handler.summary(args),
+        Command::Summary(args) => {
+            handler::summary(args, &repository, &TableSummaryPrinter, Utc::now)
+        }
     };
 
     match result {

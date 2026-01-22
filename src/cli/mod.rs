@@ -233,17 +233,44 @@ mod tests {
             assert_eq!(args.command(), &Command::Show(expected))
         }
 
-        #[test]
-        fn parses_with_top() {
-            let args = Cli::try_parse_from(&["attendance", "show", "--top", "5"]).unwrap();
-            let expected = Arguments::builder().top(5).build();
-            assert_eq!(args.command(), &Command::Show(expected))
+        mod top_tests {
+            use super::*;
+
+            #[test]
+            fn parses_with_top() {
+                let args = Cli::try_parse_from(&["attendance", "show", "--top", "5"]).unwrap();
+                let expected = Arguments::builder().top(5).build();
+                assert_eq!(args.command(), &Command::Show(expected))
+            }
+
+            #[test]
+            fn returns_error_if_top_not_an_int() {
+                let result = Cli::try_parse_from(&["attendance", "show", "--top", "cat"]);
+                assert!(result.is_err())
+            }
         }
 
-        #[test]
-        fn returns_error_if_top_not_an_int() {
-            let result = Cli::try_parse_from(&["attendance", "show", "--top", "cat"]);
-            assert!(result.is_err())
+        mod date_tests {
+            use chrono::NaiveDate;
+
+            use super::*;
+
+            #[test]
+            fn parses_with_date() {
+                let args =
+                    Cli::try_parse_from(&["attendance", "show", "--date", "2025-12-01"]).unwrap();
+                let expected = Arguments::builder()
+                    .top(10)
+                    .date(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap())
+                    .build();
+                assert_eq!(args.command(), &Command::Show(expected))
+            }
+
+            #[test]
+            fn returns_error_if_date_not_valid() {
+                let result = Cli::try_parse_from(&["attendance", "show", "--date", "fish"]);
+                assert!(result.is_err())
+            }
         }
     }
 

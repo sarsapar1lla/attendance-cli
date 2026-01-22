@@ -45,7 +45,7 @@ mod tests {
 
         #[test]
         fn parses_with_no_args() {
-            let args = Cli::try_parse_from(&["attendance", "log"]).unwrap();
+            let args = Cli::parse_from(&["attendance", "log"]);
             let expected = Arguments::builder()
                 .record_type(RecordType::Office)
                 .mode(Mode::Create)
@@ -58,7 +58,7 @@ mod tests {
 
             #[test]
             fn parses_with_default() {
-                let args = Cli::try_parse_from(&["attendance", "log"]).unwrap();
+                let args = Cli::parse_from(&["attendance", "log"]);
                 let expected = Arguments::builder()
                     .record_type(RecordType::Office)
                     .mode(Mode::Create)
@@ -68,7 +68,7 @@ mod tests {
 
             #[test]
             fn parses_with_record_type() {
-                let args = Cli::try_parse_from(&["attendance", "log", "--type", "wfh"]).unwrap();
+                let args = Cli::parse_from(&["attendance", "log", "--type", "wfh"]);
                 let expected = Arguments::builder()
                     .record_type(RecordType::WorkingFromHome)
                     .mode(Mode::Create)
@@ -88,8 +88,7 @@ mod tests {
 
             #[test]
             fn parses_with_date() {
-                let args =
-                    Cli::try_parse_from(&["attendance", "log", "--date", "2025-12-01"]).unwrap();
+                let args = Cli::parse_from(&["attendance", "log", "--date", "2025-12-01"]);
                 let expected = Arguments::builder()
                     .record_type(RecordType::Office)
                     .date(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap())
@@ -110,7 +109,7 @@ mod tests {
 
             #[test]
             fn parses_with_am() {
-                let args = Cli::try_parse_from(&["attendance", "log", "--half-day", "am"]).unwrap();
+                let args = Cli::parse_from(&["attendance", "log", "--half-day", "am"]);
                 let expected = Arguments::builder()
                     .record_type(RecordType::Office)
                     .half_day(HalfDay::Am)
@@ -121,7 +120,7 @@ mod tests {
 
             #[test]
             fn parses_with_pm() {
-                let args = Cli::try_parse_from(&["attendance", "log", "--half-day", "pm"]).unwrap();
+                let args = Cli::parse_from(&["attendance", "log", "--half-day", "pm"]);
                 let expected = Arguments::builder()
                     .record_type(RecordType::Office)
                     .half_day(HalfDay::Pm)
@@ -139,8 +138,7 @@ mod tests {
 
         #[test]
         fn parses_with_description() {
-            let args =
-                Cli::try_parse_from(&["attendance", "log", "--description", "Party!"]).unwrap();
+            let args = Cli::parse_from(&["attendance", "log", "--description", "Party!"]);
             let expected = Arguments::builder()
                 .record_type(RecordType::Office)
                 .description("Party!".into())
@@ -154,7 +152,7 @@ mod tests {
 
             #[test]
             fn parses_with_default() {
-                let args = Cli::try_parse_from(&["attendance", "log"]).unwrap();
+                let args = Cli::parse_from(&["attendance", "log"]);
                 let expected = Arguments::builder()
                     .record_type(RecordType::Office)
                     .mode(Mode::Create)
@@ -164,7 +162,7 @@ mod tests {
 
             #[test]
             fn parses_with_create() {
-                let args = Cli::try_parse_from(&["attendance", "log", "--mode", "create"]).unwrap();
+                let args = Cli::parse_from(&["attendance", "log", "--mode", "create"]);
                 let expected = Arguments::builder()
                     .record_type(RecordType::Office)
                     .mode(Mode::Create)
@@ -174,7 +172,7 @@ mod tests {
 
             #[test]
             fn parses_with_append() {
-                let args = Cli::try_parse_from(&["attendance", "log", "--mode", "append"]).unwrap();
+                let args = Cli::parse_from(&["attendance", "log", "--mode", "append"]);
                 let expected = Arguments::builder()
                     .record_type(RecordType::Office)
                     .mode(Mode::Append)
@@ -184,7 +182,7 @@ mod tests {
 
             #[test]
             fn parses_with_delete() {
-                let args = Cli::try_parse_from(&["attendance", "log", "--mode", "delete"]).unwrap();
+                let args = Cli::parse_from(&["attendance", "log", "--mode", "delete"]);
                 let expected = Arguments::builder()
                     .record_type(RecordType::Office)
                     .mode(Mode::Delete)
@@ -195,7 +193,7 @@ mod tests {
 
         #[test]
         fn parses_with_everything() {
-            let args = Cli::try_parse_from(&[
+            let args = Cli::parse_from(&[
                 "attendance",
                 "log",
                 "--type",
@@ -208,8 +206,7 @@ mod tests {
                 "Monza",
                 "--mode",
                 "append",
-            ])
-            .unwrap();
+            ]);
             let expected = Arguments::builder()
                 .record_type(RecordType::AnnualLeave)
                 .date(NaiveDate::from_ymd_opt(2025, 12, 3).unwrap())
@@ -227,8 +224,8 @@ mod tests {
         use super::*;
 
         #[test]
-        fn parses_with_no_args() {
-            let args = Cli::try_parse_from(&["attendance", "show"]).unwrap();
+        fn parses_with_default() {
+            let args = Cli::parse_from(&["attendance", "show"]);
             let expected = Arguments::builder().top(10).build();
             assert_eq!(args.command(), &Command::Show(expected))
         }
@@ -238,7 +235,7 @@ mod tests {
 
             #[test]
             fn parses_with_top() {
-                let args = Cli::try_parse_from(&["attendance", "show", "--top", "5"]).unwrap();
+                let args = Cli::parse_from(&["attendance", "show", "--top", "5"]);
                 let expected = Arguments::builder().top(5).build();
                 assert_eq!(args.command(), &Command::Show(expected))
             }
@@ -257,8 +254,7 @@ mod tests {
 
             #[test]
             fn parses_with_date() {
-                let args =
-                    Cli::try_parse_from(&["attendance", "show", "--date", "2025-12-01"]).unwrap();
+                let args = Cli::parse_from(&["attendance", "show", "--date", "2025-12-01"]);
                 let expected = Arguments::builder()
                     .top(10)
                     .date(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap())
@@ -281,14 +277,14 @@ mod tests {
 
         #[test]
         fn parses_with_no_args() {
-            let args = Cli::try_parse_from(&["attendance", "summary"]).unwrap();
+            let args = Cli::parse_from(&["attendance", "summary"]);
             let expected = Arguments::builder().build();
             assert_eq!(args.command(), &Command::Summary(expected))
         }
 
         #[test]
         fn parses_with_months() {
-            let args = Cli::try_parse_from(&["attendance", "summary", "--months", "3"]).unwrap();
+            let args = Cli::parse_from(&["attendance", "summary", "--months", "3"]);
             let expected = Arguments::builder().months(3).build();
             assert_eq!(args.command(), &Command::Summary(expected))
         }

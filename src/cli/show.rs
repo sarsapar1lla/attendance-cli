@@ -4,10 +4,12 @@ use clap::Args;
 #[derive(Debug, Args)]
 #[cfg_attr(test, derive(PartialEq, bon::Builder))]
 pub struct Arguments {
+    /// Limit the number of records returned
     #[arg(long, default_value = "10")]
     top: usize,
 
-    #[arg(long, help = "Show records for a specific date.")]
+    /// Show records for a specific date
+    #[arg(long)]
     date: Option<NaiveDate>,
 }
 

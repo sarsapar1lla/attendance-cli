@@ -15,11 +15,16 @@ pub fn show(
     let sorted: Vec<Record> = records
         .into_iter()
         .sorted_by(|a, b| a.created().cmp(b.created()).reverse())
+        .filter(|r| match args.date() {
+            None => true,
+            Some(date) => r.key().date() == *date,
+        })
         .collect();
 
-    let truncated = match args.top() {
-        None => sorted.as_slice(),
-        Some(count) => &sorted.as_slice()[0..count],
+    let truncated = if args.top() >= sorted.len() {
+        sorted.as_slice()
+    } else {
+        &sorted.as_slice()[0..args.top()]
     };
 
     printer.print(truncated);
@@ -44,7 +49,7 @@ mod tests {
     #[test]
     fn returns_error_if_cannot_access_repository() {
         let result = show(
-            &Arguments::builder().build(),
+            &Arguments::builder().top(10).build(),
             &FailingRepository,
             &InMemoryPrinter::new(),
         );
@@ -52,32 +57,11 @@ mod tests {
     }
 
     #[test]
-    fn prints_all_records_with_latest_first() {
-        let first = record(10);
-        let second = record(15);
-        let fourth = record(25);
-        let third = record(20);
-
-        let args = Arguments::builder().build();
-        let repository = InMemoryRepository::new(&[
-            first.clone(),
-            second.clone(),
-            fourth.clone(),
-            third.clone(),
-        ]);
-        let printer = InMemoryPrinter::new();
-
-        show(&args, &repository, &printer).unwrap();
-
-        assert_eq!(printer.printed(), vec![fourth, third, second, first])
-    }
-
-    #[test]
     fn prints_top_n_records_with_latest_first() {
-        let first = record(10);
-        let second = record(15);
-        let fourth = record(25);
-        let third = record(20);
+        let first = record(1, 10);
+        let second = record(1, 15);
+        let fourth = record(1, 25);
+        let third = record(1, 20);
 
         let args = Arguments::builder().top(2).build();
         let repository = InMemoryRepository::new(&[first, second, fourth.clone(), third.clone()]);
@@ -88,9 +72,41 @@ mod tests {
         assert_eq!(printer.printed(), vec![fourth, third])
     }
 
-    fn record(minute: u32) -> Record {
+    #[test]
+    fn prints_all_records_if_top_greater_than_record_size() {
+        let first = record(1, 10);
+        let second = record(1, 15);
+
+        let args = Arguments::builder().top(3).build();
+        let repository = InMemoryRepository::new(&[first.clone(), second.clone()]);
+        let printer = InMemoryPrinter::new();
+
+        show(&args, &repository, &printer).unwrap();
+
+        assert_eq!(printer.printed(), vec![second, first])
+    }
+
+    #[test]
+    fn prints_all_records_for_requested_date() {
+        let first = record(1, 10);
+        let second = record(1, 15);
+        let third = record(2, 5);
+
+        let args = Arguments::builder()
+            .top(1)
+            .date(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap())
+            .build();
+        let repository = InMemoryRepository::new(&[first, second.clone(), third]);
+        let printer = InMemoryPrinter::new();
+
+        show(&args, &repository, &printer).unwrap();
+
+        assert_eq!(printer.printed(), vec![second])
+    }
+
+    fn record(day: u32, minute: u32) -> Record {
         let created = NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2025, 12, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2025, 12, day).unwrap(),
             NaiveTime::from_hms_opt(10, minute, 0).unwrap(),
         )
         .and_utc();

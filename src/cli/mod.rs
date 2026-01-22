@@ -229,14 +229,14 @@ mod tests {
         #[test]
         fn parses_with_no_args() {
             let args = Cli::try_parse_from(&["attendance", "show"]).unwrap();
-            let expected = Arguments::builder().build();
+            let expected = Arguments::builder().top(10).build();
             assert_eq!(args.command(), &Command::Show(expected))
         }
 
         #[test]
         fn parses_with_top() {
-            let args = Cli::try_parse_from(&["attendance", "show", "--top", "10"]).unwrap();
-            let expected = Arguments::builder().top(10).build();
+            let args = Cli::try_parse_from(&["attendance", "show", "--top", "5"]).unwrap();
+            let expected = Arguments::builder().top(5).build();
             assert_eq!(args.command(), &Command::Show(expected))
         }
 

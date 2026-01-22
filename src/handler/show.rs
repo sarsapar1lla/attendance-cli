@@ -17,9 +17,10 @@ pub fn show(
         .sorted_by(|a, b| a.created().cmp(b.created()).reverse())
         .collect();
 
-    let truncated = match args.top() {
-        None => sorted.as_slice(),
-        Some(count) => &sorted.as_slice()[0..count],
+    let truncated = if args.top() >= sorted.len() {
+        sorted.as_slice()
+    } else {
+        &sorted.as_slice()[0..args.top()]
     };
 
     printer.print(truncated);
@@ -44,32 +45,11 @@ mod tests {
     #[test]
     fn returns_error_if_cannot_access_repository() {
         let result = show(
-            &Arguments::builder().build(),
+            &Arguments::builder().top(10).build(),
             &FailingRepository,
             &InMemoryPrinter::new(),
         );
         assert!(result.is_err())
-    }
-
-    #[test]
-    fn prints_all_records_with_latest_first() {
-        let first = record(10);
-        let second = record(15);
-        let fourth = record(25);
-        let third = record(20);
-
-        let args = Arguments::builder().build();
-        let repository = InMemoryRepository::new(&[
-            first.clone(),
-            second.clone(),
-            fourth.clone(),
-            third.clone(),
-        ]);
-        let printer = InMemoryPrinter::new();
-
-        show(&args, &repository, &printer).unwrap();
-
-        assert_eq!(printer.printed(), vec![fourth, third, second, first])
     }
 
     #[test]
@@ -86,6 +66,20 @@ mod tests {
         show(&args, &repository, &printer).unwrap();
 
         assert_eq!(printer.printed(), vec![fourth, third])
+    }
+
+    #[test]
+    fn prints_all_records_if_top_greater_than_record_size() {
+        let first = record(10);
+        let second = record(15);
+
+        let args = Arguments::builder().top(3).build();
+        let repository = InMemoryRepository::new(&[first.clone(), second.clone()]);
+        let printer = InMemoryPrinter::new();
+
+        show(&args, &repository, &printer).unwrap();
+
+        assert_eq!(printer.printed(), vec![second, first])
     }
 
     fn record(minute: u32) -> Record {

@@ -61,10 +61,11 @@ impl Arguments {
     }
 }
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, ValueEnum, Default)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum RecordType {
     /// Office day
+    #[default]
     Office,
 
     /// Authorised working from home
@@ -82,12 +83,6 @@ pub enum RecordType {
     Other,
 }
 
-impl Default for RecordType {
-    fn default() -> Self {
-        Self::Office
-    }
-}
-
 #[derive(Debug, Clone, ValueEnum)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum HalfDay {
@@ -95,18 +90,13 @@ pub enum HalfDay {
     Pm,
 }
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, ValueEnum, Default)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum Mode {
+    #[default]
     Create,
     Append,
     Delete,
-}
-
-impl Default for Mode {
-    fn default() -> Self {
-        Self::Create
-    }
 }
 
 #[cfg(test)]

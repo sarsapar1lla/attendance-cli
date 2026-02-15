@@ -138,6 +138,7 @@ impl SummaryMonth {
 #[cfg_attr(test, derive(PartialEq, Clone))]
 pub struct Summary {
     month: SummaryMonth,
+    target_days: f32,
     office_days: f32,
     workdays: f32,
     attendance: f32,
@@ -146,6 +147,10 @@ pub struct Summary {
 impl Summary {
     pub fn month(&self) -> &SummaryMonth {
         &self.month
+    }
+
+    pub fn target_days(&self) -> f32 {
+        self.target_days
     }
 
     pub fn office_days(&self) -> f32 {

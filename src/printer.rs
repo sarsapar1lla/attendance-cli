@@ -2,11 +2,11 @@ use std::sync::LazyLock;
 
 use chrono::{Duration, DurationRound};
 use comfy_table::{
-    Attribute, Cell, CellAlignment, ContentArrangement, Table, modifiers::UTF8_ROUND_CORNERS,
-    presets::UTF8_FULL_CONDENSED,
+    Attribute, Cell, CellAlignment, Color, ContentArrangement, Table,
+    modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL_CONDENSED,
 };
 
-use crate::model::{HalfDay, Key, Record, Summary};
+use crate::model::{HalfDay, Key, Mode, Record, Summary};
 
 static NULL_CELL: LazyLock<Cell> = LazyLock::new(|| {
     Cell::new("null")
@@ -42,37 +42,54 @@ impl TableRecordPrinter {
             header_cell("Where?"),
             header_cell("Half Day?"),
             header_cell("Description"),
-            header_cell("Mode"),
             header_cell("Logged"),
         ]
     }
 
     fn row_from(record: &Record) -> Vec<Cell> {
+        let row_colour = match record.mode() {
+            Mode::Create => Color::Green,
+            Mode::Append => Color::DarkYellow,
+            Mode::Delete => Color::Red,
+        };
         let (date, half_day) = match *record.key() {
-            Key::FullDay(date) => (Cell::new(date), NULL_CELL.clone()),
+            Key::FullDay(date) => (
+                Cell::new(date),
+                NULL_CELL.clone().set_alignment(CellAlignment::Center),
+            ),
             Key::HalfDay {
                 date,
                 half: HalfDay::Am,
-            } => (Cell::new(date), Cell::new("Morning")),
+            } => (
+                Cell::new(date),
+                Cell::new("Morning")
+                    .fg(row_colour)
+                    .set_alignment(CellAlignment::Left),
+            ),
             Key::HalfDay {
                 date,
                 half: HalfDay::Pm,
-            } => (Cell::new(date), Cell::new("Afternoon")),
+            } => (
+                Cell::new(date),
+                Cell::new("Afternoon")
+                    .fg(row_colour)
+                    .set_alignment(CellAlignment::Left),
+            ),
         };
         vec![
-            date,
-            Cell::new(record.record_type()),
-            half_day.set_alignment(CellAlignment::Center),
+            date.fg(row_colour),
+            Cell::new(record.record_type()).fg(row_colour),
+            half_day,
             record
                 .description()
                 .map_or_else(|| NULL_CELL.clone(), Cell::new),
-            Cell::new(record.mode()),
             Cell::new(
                 record
                     .created()
                     .duration_trunc(Duration::seconds(1))
                     .unwrap(),
-            ),
+            )
+            .fg(row_colour),
         ]
     }
 }
@@ -111,17 +128,26 @@ impl TableSummaryPrinter {
         );
         let attendance = (summary.attendance() * 100.0).round();
         let attendance = format!("{attendance}%");
+        let attendance_colour = match summary.attendance() {
+            x if x < 0.30 => Color::Red,
+            x if (0.30..0.50).contains(&x) => Color::DarkYellow,
+            _ => Color::Green,
+        };
         vec![
             Cell::new(month),
+            Cell::new(summary.target_days()).set_alignment(CellAlignment::Right),
             Cell::new(summary.office_days()).set_alignment(CellAlignment::Right),
             Cell::new(summary.workdays()).set_alignment(CellAlignment::Right),
-            Cell::new(attendance).set_alignment(CellAlignment::Right),
+            Cell::new(attendance)
+                .set_alignment(CellAlignment::Right)
+                .fg(attendance_colour),
         ]
     }
 
     fn header() -> Vec<Cell> {
         vec![
             header_cell("Month"),
+            header_cell("Target Days"),
             header_cell("Days in Office"),
             header_cell("Working Days"),
             header_cell("Attendance"),

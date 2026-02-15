@@ -126,6 +126,7 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
 
     Summary::builder()
         .month(month)
+        .target_days(workdays * 0.50)
         .office_days(office_days)
         .workdays(workdays)
         .attendance(attendance)
@@ -169,6 +170,7 @@ mod tests {
                     .month(SummaryMonth::new(
                         NaiveDate::from_ymd_opt(2025, 12, 1).unwrap()
                     ))
+                    .target_days(10.5)
                     .office_days(0.0)
                     .workdays(21.0)
                     .attendance(0.0)
@@ -243,18 +245,21 @@ mod tests {
                 vec![
                     Summary::builder()
                         .month(SummaryMonth::from_parts(2025, Month::September))
+                        .target_days(11.0)
                         .office_days(1.0)
                         .workdays(22.0)
                         .attendance(0.045)
                         .build(),
                     Summary::builder()
                         .month(SummaryMonth::from_parts(2025, Month::October))
+                        .target_days(11.5)
                         .office_days(1.0)
                         .workdays(23.0)
                         .attendance(0.043)
                         .build(),
                     Summary::builder()
                         .month(SummaryMonth::from_parts(2025, Month::November))
+                        .target_days(10.0)
                         .office_days(1.0)
                         .workdays(20.0)
                         .attendance(0.05)

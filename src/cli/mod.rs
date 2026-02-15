@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 
+pub mod completion;
 pub mod log;
 pub mod show;
 pub mod summary;
@@ -22,6 +23,9 @@ impl Cli {
 #[derive(Debug, Subcommand)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum Command {
+    /// Generate completions
+    Completion(completion::Arguments),
+
     /// Log attendance
     Log(log::Arguments),
 
@@ -35,6 +39,39 @@ pub enum Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    mod completion_tests {
+        use crate::cli::completion::{Arguments, Shell};
+
+        use super::*;
+
+        #[test]
+        fn parses_with_bash() {
+            let args = Cli::parse_from(&["attendance", "completion", "bash"]);
+            let expected = Arguments::new(Shell::Bash);
+            assert_eq!(args.command(), &Command::Completion(expected))
+        }
+
+        #[test]
+        fn parses_with_fish() {
+            let args = Cli::parse_from(&["attendance", "completion", "fish"]);
+            let expected = Arguments::new(Shell::Fish);
+            assert_eq!(args.command(), &Command::Completion(expected))
+        }
+
+        #[test]
+        fn parses_with_zsh() {
+            let args = Cli::parse_from(&["attendance", "completion", "zsh"]);
+            let expected = Arguments::new(Shell::Zsh);
+            assert_eq!(args.command(), &Command::Completion(expected))
+        }
+
+        #[test]
+        fn returns_error_if_invalid_shell() {
+            let args = Cli::try_parse_from(&["attendance", "completion", "nushell"]);
+            assert!(args.is_err())
+        }
+    }
 
     mod log_tests {
         use chrono::NaiveDate;

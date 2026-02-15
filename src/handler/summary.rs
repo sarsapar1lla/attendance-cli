@@ -7,14 +7,14 @@ use crate::{
     cli::summary::Arguments,
     error::Result,
     model::{Category, Mode, Record, RecordType, Summary},
-    printer::SummaryPrinter,
+    printer::summary::Printer,
     repository::Repository,
 };
 
 pub fn summary(
     args: &Arguments,
     repository: &dyn Repository,
-    printer: &dyn SummaryPrinter,
+    printer: &dyn Printer,
     now_fn: fn() -> DateTime<Utc>,
 ) -> Result<()> {
     let number_of_months = args.months().unwrap_or(1);
@@ -50,14 +50,12 @@ pub fn summary(
 
     summaries.sort_by(|a, b| a.month().cmp(b.month()).reverse());
 
-    printer.print(&summaries);
-
-    Ok(())
+    printer.print(&summaries)
 }
 
 fn last_n_months(n: usize, now_fn: fn() -> DateTime<Utc>) -> Vec<NaiveDate> {
     let today = (now_fn)().date_naive();
-    let this_month = month_of(&today);
+    let this_month = month_of(today);
     (0..n)
         .map(|months_back| {
             this_month
@@ -68,12 +66,12 @@ fn last_n_months(n: usize, now_fn: fn() -> DateTime<Utc>) -> Vec<NaiveDate> {
 }
 
 fn record_in_months(record: &Record, months: &[NaiveDate]) -> bool {
-    let month = month_of(&record.key().date());
+    let month = month_of(record.key().date());
     months.contains(&month)
 }
 
 fn summarise(records: Vec<Record>) -> Vec<Summary> {
-    let months = records.into_iter().chunk_by(|r| month_of(&r.key().date()));
+    let months = records.into_iter().chunk_by(|r| month_of(r.key().date()));
     months
         .into_iter()
         .map(|month| summarise_month(month.0, month.1.collect_vec().as_slice()))
@@ -122,7 +120,7 @@ fn summarise_month(month: NaiveDate, records: &[Record]) -> Summary {
         .build()
 }
 
-fn month_of(date: &NaiveDate) -> NaiveDate {
+fn month_of(date: NaiveDate) -> NaiveDate {
     date.with_day(1).expect("Every month has a first day")
 }
 
@@ -139,7 +137,7 @@ mod tests {
     #[test]
     fn returns_error_if_cannot_access_repository() {
         let result = summary(
-            &Arguments::builder().build(),
+            &Arguments::builder().json(false).build(),
             &FailingRepository,
             &InMemoryPrinter::new(),
             Utc::now,
@@ -150,7 +148,7 @@ mod tests {
 
     #[test]
     fn summarises_latest_month_when_no_records() {
-        let args = Arguments::builder().build();
+        let args = Arguments::builder().json(false).build();
         let repository = InMemoryRepository::new(&[]);
         let printer = InMemoryPrinter::new();
 
@@ -366,9 +364,10 @@ mod tests {
         }
     }
 
-    impl SummaryPrinter for InMemoryPrinter {
-        fn print(&self, summaries: &[Summary]) {
+    impl Printer for InMemoryPrinter {
+        fn print(&self, summaries: &[Summary]) -> Result<()> {
             self.printed.lock().unwrap().append(&mut summaries.to_vec());
+            Ok(())
         }
     }
 }

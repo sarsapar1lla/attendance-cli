@@ -1,7 +1,8 @@
 use bon::Builder;
 use chrono::NaiveDate;
+use serde::Serialize;
 
-#[derive(Debug, Builder)]
+#[derive(Debug, Builder, Serialize)]
 #[cfg_attr(test, derive(PartialEq, Clone))]
 pub struct Summary {
     month: NaiveDate,

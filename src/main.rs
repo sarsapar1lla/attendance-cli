@@ -5,7 +5,7 @@ use clap::Parser;
 
 use crate::{
     cli::{Cli, Command},
-    printer::{TableRecordPrinter, TableSummaryPrinter},
+    printer::{record, summary},
     repository::FileRepository,
 };
 
@@ -24,11 +24,15 @@ fn main() {
     let repository = FileRepository::new();
 
     let result = match cli.command() {
-        Command::Completion(args) => handler::completion(args, &mut io::stdout()),
+        Command::Completion(args) => {
+            handler::completion(args, &mut io::stdout());
+            Ok(())
+        }
         Command::Log(args) => handler::log(args, &repository),
-        Command::Show(args) => handler::show(args, &repository, &TableRecordPrinter),
+        Command::Show(args) => handler::show(args, &repository, &record::Table),
         Command::Summary(args) => {
-            handler::summary(args, &repository, &TableSummaryPrinter, Utc::now)
+            let printer = summary::from_args(args);
+            handler::summary(args, &repository, printer.as_ref(), Utc::now)
         }
     };
 

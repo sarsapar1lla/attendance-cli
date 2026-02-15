@@ -4,7 +4,6 @@ use chrono::{DateTime, Datelike, Months, NaiveDate, Utc};
 use itertools::{Itertools, any};
 
 use crate::{
-    category,
     cli::summary::Arguments,
     error::Result,
     model::{Category, Mode, Record, RecordType, Summary},
@@ -58,7 +57,7 @@ pub fn summary(
 
 fn last_n_months(n: usize, now_fn: fn() -> DateTime<Utc>) -> Vec<NaiveDate> {
     let today = (now_fn)().date_naive();
-    let this_month = Summary::month_of(&today);
+    let this_month = month_of(&today);
     (0..n)
         .map(|months_back| {
             this_month
@@ -69,14 +68,12 @@ fn last_n_months(n: usize, now_fn: fn() -> DateTime<Utc>) -> Vec<NaiveDate> {
 }
 
 fn record_in_months(record: &Record, months: &[NaiveDate]) -> bool {
-    let month = Summary::month_of(&record.key().date());
+    let month = month_of(&record.key().date());
     months.contains(&month)
 }
 
 fn summarise(records: Vec<Record>) -> Vec<Summary> {
-    let months = records
-        .into_iter()
-        .chunk_by(|r| Summary::month_of(&r.key().date()));
+    let months = records.into_iter().chunk_by(|r| month_of(&r.key().date()));
     months
         .into_iter()
         .map(|month| summarise_month(month.0, month.1.collect_vec().as_slice()))
@@ -98,7 +95,7 @@ fn summarise_month(month: NaiveDate, records: &[Record]) -> Summary {
     let workdays = month
         .iter_days()
         .take_while(|date| date.month() == month.month())
-        .filter(|date| category::category(date) == Category::Workday)
+        .filter(|date| Category::from(date) == Category::Workday)
         .map(|date| excluded.get(&date).unwrap_or(&1.0f32))
         .sum();
 
@@ -123,6 +120,10 @@ fn summarise_month(month: NaiveDate, records: &[Record]) -> Summary {
         .workdays(workdays)
         .attendance(attendance)
         .build()
+}
+
+fn month_of(date: &NaiveDate) -> NaiveDate {
+    date.with_day(1).expect("Every month has a first day")
 }
 
 #[cfg(test)]

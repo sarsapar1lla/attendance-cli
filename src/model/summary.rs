@@ -1,5 +1,5 @@
 use bon::Builder;
-use chrono::{Datelike, NaiveDate};
+use chrono::NaiveDate;
 
 #[derive(Debug, Builder)]
 #[cfg_attr(test, derive(PartialEq, Clone))]
@@ -12,10 +12,6 @@ pub struct Summary {
 }
 
 impl Summary {
-    pub fn month_of(date: &NaiveDate) -> NaiveDate {
-        date.with_day(1).expect("Every month has a first day")
-    }
-
     pub fn month(&self) -> &NaiveDate {
         &self.month
     }

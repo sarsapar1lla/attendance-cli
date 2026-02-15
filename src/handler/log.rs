@@ -2,7 +2,6 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use crate::{
-    category,
     cli::{self},
     error::{Error, Result},
     handler::records::Records,
@@ -16,7 +15,7 @@ pub fn log(args: &cli::log::Arguments, repository: &dyn Repository) -> Result<()
     let record = record_from(args);
 
     let date = record.key().date();
-    let day_category = category::category(&date);
+    let day_category = Category::from(&date);
 
     match day_category {
         Category::BankHoliday => Err(Error::IsBankHoliday(date)),

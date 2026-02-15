@@ -1,3 +1,5 @@
+use std::io;
+
 use chrono::Utc;
 use clap::Parser;
 
@@ -22,6 +24,7 @@ fn main() {
     let repository = FileRepository::new();
 
     let result = match cli.command() {
+        Command::Completion(args) => handler::completion(args, &mut io::stdout()),
         Command::Log(args) => handler::log(args, &repository),
         Command::Show(args) => handler::show(args, &repository, &TableRecordPrinter),
         Command::Summary(args) => {

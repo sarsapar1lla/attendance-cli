@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use bon::Builder;
-use chrono::{DateTime, Datelike, Month, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -106,38 +106,10 @@ impl Record {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(test, derive(Clone))]
-pub struct SummaryMonth {
-    year: u32,
-    month: Month,
-}
-
-impl SummaryMonth {
-    pub fn new(date: NaiveDate) -> Self {
-        let year = date.year_ce().1;
-        let month = Month::try_from(u8::try_from(date.month()).unwrap()).unwrap();
-        Self { year, month }
-    }
-
-    #[cfg(test)]
-    pub fn from_parts(year: u32, month: Month) -> Self {
-        Self { year, month }
-    }
-
-    pub fn year(&self) -> u32 {
-        self.year
-    }
-
-    pub fn month(&self) -> Month {
-        self.month
-    }
-}
-
 #[derive(Debug, Builder)]
 #[cfg_attr(test, derive(PartialEq, Clone))]
 pub struct Summary {
-    month: SummaryMonth,
+    month: NaiveDate,
     target_days: f32,
     office_days: f32,
     workdays: f32,
@@ -145,7 +117,11 @@ pub struct Summary {
 }
 
 impl Summary {
-    pub fn month(&self) -> &SummaryMonth {
+    pub fn month_of(date: &NaiveDate) -> NaiveDate {
+        date.with_day(1).expect("Every month has a first day")
+    }
+
+    pub fn month(&self) -> &NaiveDate {
         &self.month
     }
 

@@ -121,11 +121,7 @@ impl SummaryPrinter for TableSummaryPrinter {
 
 impl TableSummaryPrinter {
     fn row_from(summary: &Summary) -> Vec<Cell> {
-        let month = format!(
-            "{} {}",
-            summary.month().month().name(),
-            summary.month().year()
-        );
+        let month = summary.month().format("%B %Y");
         let attendance = (summary.attendance() * 100.0).round();
         let attendance = format!("{attendance}%");
         let attendance_colour = match summary.attendance() {

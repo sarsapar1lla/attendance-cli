@@ -4,7 +4,7 @@ use uuid::Uuid;
 use crate::{
     cli::{self},
     error::{Error, Result},
-    handler::{day, records::Records},
+    handler::records::Records,
     model::{Category, Key, Mode, Record},
     repository::Repository,
 };
@@ -15,7 +15,7 @@ pub fn log(args: &cli::log::Arguments, repository: &dyn Repository) -> Result<()
     let record = record_from(args);
 
     let date = record.key().date();
-    let day_category = day::category(&date);
+    let day_category = Category::from(&date);
 
     match day_category {
         Category::BankHoliday => Err(Error::IsBankHoliday(date)),

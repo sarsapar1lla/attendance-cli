@@ -12,12 +12,14 @@ const BANK_HOLIDAY_JSON: &str = include_str!(concat!(
 static BANK_HOLIDAYS: LazyLock<Vec<NaiveDate>> =
     LazyLock::new(|| serde_json::from_str(BANK_HOLIDAY_JSON).unwrap());
 
-pub fn category(date: &NaiveDate) -> Category {
-    match date {
-        date if date.weekday() == Weekday::Sat => Category::Weekend(WeekendDay::Saturday),
-        date if date.weekday() == Weekday::Sun => Category::Weekend(WeekendDay::Sunday),
-        date if BANK_HOLIDAYS.contains(date) => Category::BankHoliday,
-        _ => Category::Workday,
+impl From<&NaiveDate> for Category {
+    fn from(value: &NaiveDate) -> Self {
+        match value {
+            value if value.weekday() == Weekday::Sat => Category::Weekend(WeekendDay::Saturday),
+            value if value.weekday() == Weekday::Sun => Category::Weekend(WeekendDay::Sunday),
+            value if BANK_HOLIDAYS.contains(value) => Category::BankHoliday,
+            _ => Category::Workday,
+        }
     }
 }
 
@@ -28,25 +30,28 @@ mod tests {
     #[test]
     fn categorises_saturday() {
         let date = date(13);
-        assert_eq!(category(&date), Category::Weekend(WeekendDay::Saturday))
+        assert_eq!(
+            Category::from(&date),
+            Category::Weekend(WeekendDay::Saturday)
+        )
     }
 
     #[test]
     fn categorises_sunday() {
         let date = date(14);
-        assert_eq!(category(&date), Category::Weekend(WeekendDay::Sunday))
+        assert_eq!(Category::from(&date), Category::Weekend(WeekendDay::Sunday))
     }
 
     #[test]
     fn categorises_bank_holiday() {
         let date = date(25);
-        assert_eq!(category(&date), Category::BankHoliday)
+        assert_eq!(Category::from(&date), Category::BankHoliday)
     }
 
     #[test]
     fn categorises_workday() {
         let date = date(12);
-        assert_eq!(category(&date), Category::Workday)
+        assert_eq!(Category::from(&date), Category::Workday)
     }
 
     fn date(day: u32) -> NaiveDate {

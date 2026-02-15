@@ -6,8 +6,7 @@ use itertools::{Itertools, any};
 use crate::{
     cli::summary::Arguments,
     error::Result,
-    handler::day,
-    model::{Category, Mode, Record, RecordType, Summary, SummaryMonth},
+    model::{Category, Mode, Record, RecordType, Summary},
     printer::SummaryPrinter,
     repository::Repository,
 };
@@ -56,37 +55,32 @@ pub fn summary(
     Ok(())
 }
 
-fn last_n_months(n: usize, now_fn: fn() -> DateTime<Utc>) -> Vec<SummaryMonth> {
-    let today = (now_fn)()
-        .date_naive()
-        .with_day(1)
-        .expect("Every month has a first day");
+fn last_n_months(n: usize, now_fn: fn() -> DateTime<Utc>) -> Vec<NaiveDate> {
+    let today = (now_fn)().date_naive();
+    let this_month = month_of(&today);
     (0..n)
         .map(|months_back| {
-            today
+            this_month
                 .checked_sub_months(Months::new(u32::try_from(months_back).unwrap()))
                 .unwrap()
         })
-        .map(SummaryMonth::new)
         .collect()
 }
 
-fn record_in_months(record: &Record, months: &[SummaryMonth]) -> bool {
-    let month = SummaryMonth::new(record.key().date());
+fn record_in_months(record: &Record, months: &[NaiveDate]) -> bool {
+    let month = month_of(&record.key().date());
     months.contains(&month)
 }
 
 fn summarise(records: Vec<Record>) -> Vec<Summary> {
-    let months = records
-        .into_iter()
-        .chunk_by(|r| SummaryMonth::new(r.key().date()));
+    let months = records.into_iter().chunk_by(|r| month_of(&r.key().date()));
     months
         .into_iter()
         .map(|month| summarise_month(month.0, month.1.collect_vec().as_slice()))
         .collect()
 }
 
-fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
+fn summarise_month(month: NaiveDate, records: &[Record]) -> Summary {
     let excluded: HashMap<NaiveDate, f32> = records
         .iter()
         .filter(|r| r.record_type() != &RecordType::Office)
@@ -98,17 +92,12 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
         })
         .collect();
 
-    let workdays = NaiveDate::from_ymd_opt(
-        i32::try_from(month.year()).unwrap(),
-        month.month().number_from_month(),
-        1,
-    )
-    .unwrap()
-    .iter_days()
-    .take_while(|date| date.month() == month.month().number_from_month())
-    .filter(|date| day::category(date) == Category::Workday)
-    .map(|date| excluded.get(&date).unwrap_or(&1.0f32))
-    .sum();
+    let workdays = month
+        .iter_days()
+        .take_while(|date| date.month() == month.month())
+        .filter(|date| Category::from(date) == Category::Workday)
+        .map(|date| excluded.get(&date).unwrap_or(&1.0f32))
+        .sum();
 
     let office_days = if records.is_empty() {
         0.0f32
@@ -126,10 +115,15 @@ fn summarise_month(month: SummaryMonth, records: &[Record]) -> Summary {
 
     Summary::builder()
         .month(month)
+        .target_days(workdays * 0.50)
         .office_days(office_days)
         .workdays(workdays)
         .attendance(attendance)
         .build()
+}
+
+fn month_of(date: &NaiveDate) -> NaiveDate {
+    date.with_day(1).expect("Every month has a first day")
 }
 
 #[cfg(test)]
@@ -166,9 +160,8 @@ mod tests {
             printer.printed(),
             vec![
                 Summary::builder()
-                    .month(SummaryMonth::new(
-                        NaiveDate::from_ymd_opt(2025, 12, 1).unwrap()
-                    ))
+                    .month(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap())
+                    .target_days(10.5)
                     .office_days(0.0)
                     .workdays(21.0)
                     .attendance(0.0)
@@ -227,7 +220,7 @@ mod tests {
     }
 
     mod summarise_tests {
-        use chrono::{Month, TimeZone};
+        use chrono::TimeZone;
         use uuid::Uuid;
 
         use crate::model::Key;
@@ -242,19 +235,22 @@ mod tests {
                 actual,
                 vec![
                     Summary::builder()
-                        .month(SummaryMonth::from_parts(2025, Month::September))
+                        .month(NaiveDate::from_ymd_opt(2025, 9, 1).unwrap())
+                        .target_days(11.0)
                         .office_days(1.0)
                         .workdays(22.0)
                         .attendance(0.045)
                         .build(),
                     Summary::builder()
-                        .month(SummaryMonth::from_parts(2025, Month::October))
+                        .month(NaiveDate::from_ymd_opt(2025, 10, 1).unwrap())
+                        .target_days(11.5)
                         .office_days(1.0)
                         .workdays(23.0)
                         .attendance(0.043)
                         .build(),
                     Summary::builder()
-                        .month(SummaryMonth::from_parts(2025, Month::November))
+                        .month(NaiveDate::from_ymd_opt(2025, 11, 1).unwrap())
+                        .target_days(10.0)
                         .office_days(1.0)
                         .workdays(20.0)
                         .attendance(0.05)
@@ -286,7 +282,7 @@ mod tests {
 
         #[test]
         fn counts_office_days() {
-            let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 10, 1).unwrap());
+            let month = NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
             let records = vec![
                 record(1, RecordType::Office),
                 record(2, RecordType::Office),
@@ -298,14 +294,14 @@ mod tests {
 
         #[test]
         fn counts_workdays() {
-            let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 10, 1).unwrap());
+            let month = NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
             let actual = summarise_month(month, &[]);
             assert_eq!(actual.workdays(), 23.0)
         }
 
         #[test]
         fn counts_workdays_including_exclusions() {
-            let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 10, 1).unwrap());
+            let month = NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
             let records = vec![
                 record(1, RecordType::WorkingFromHome),
                 record(2, RecordType::AnnualLeave),
@@ -317,14 +313,14 @@ mod tests {
 
         #[test]
         fn counts_workdays_excluding_bank_holidays() {
-            let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap());
+            let month = NaiveDate::from_ymd_opt(2025, 12, 1).unwrap();
             let actual = summarise_month(month, &[]);
             assert_eq!(actual.workdays(), 21.0)
         }
 
         #[test]
         fn calculates_attendance() {
-            let month = SummaryMonth::new(NaiveDate::from_ymd_opt(2025, 10, 1).unwrap());
+            let month = NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
             let records = vec![
                 record(1, RecordType::Office),
                 record(2, RecordType::Office),
@@ -332,6 +328,13 @@ mod tests {
             ];
             let actual = summarise_month(month, &records);
             assert_eq!(actual.attendance(), 0.13)
+        }
+
+        #[test]
+        fn calculates_target_days() {
+            let month = NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
+            let actual = summarise_month(month, &[]);
+            assert_eq!(actual.target_days(), 11.5)
         }
 
         fn record(day: u32, record_type: RecordType) -> Record {

@@ -1,15 +1,11 @@
 use itertools::Itertools;
 
 use crate::{
-    cli::show::Arguments, error::Result, model::Record, printer::RecordPrinter,
+    cli::show::Arguments, error::Result, model::Record, printer::record::Printer,
     repository::Repository,
 };
 
-pub fn show(
-    args: &Arguments,
-    repository: &dyn Repository,
-    printer: &dyn RecordPrinter,
-) -> Result<()> {
+pub fn show(args: &Arguments, repository: &dyn Repository, printer: &dyn Printer) -> Result<()> {
     let records = repository.get()?;
 
     let sorted: Vec<Record> = records
@@ -135,7 +131,7 @@ mod tests {
         }
     }
 
-    impl RecordPrinter for InMemoryPrinter {
+    impl Printer for InMemoryPrinter {
         fn print(&self, records: &[Record]) {
             self.printed.lock().unwrap().append(&mut records.to_vec());
         }

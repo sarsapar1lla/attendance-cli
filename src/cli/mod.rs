@@ -315,14 +315,14 @@ mod tests {
         #[test]
         fn parses_with_no_args() {
             let args = Cli::parse_from(&["attendance", "summary"]);
-            let expected = Arguments::builder().build();
+            let expected = Arguments::builder().json(false).build();
             assert_eq!(args.command(), &Command::Summary(expected))
         }
 
         #[test]
         fn parses_with_months() {
             let args = Cli::parse_from(&["attendance", "summary", "--months", "3"]);
-            let expected = Arguments::builder().months(3).build();
+            let expected = Arguments::builder().months(3).json(false).build();
             assert_eq!(args.command(), &Command::Summary(expected))
         }
 
@@ -330,6 +330,13 @@ mod tests {
         fn returns_error_if_months_not_an_int() {
             let result = Cli::try_parse_from(&["attendance", "summary", "--months", "ago"]);
             assert!(result.is_err())
+        }
+
+        #[test]
+        fn parses_with_json() {
+            let args = Cli::parse_from(&["attendance", "summary", "--json"]);
+            let expected = Arguments::builder().json(true).build();
+            assert_eq!(args.command(), &Command::Summary(expected))
         }
     }
 }

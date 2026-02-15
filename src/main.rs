@@ -7,6 +7,7 @@ use crate::{
     repository::FileRepository,
 };
 
+mod category;
 mod cli;
 mod error;
 mod handler;

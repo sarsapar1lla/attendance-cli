@@ -4,9 +4,9 @@ use chrono::{DateTime, Datelike, Months, NaiveDate, Utc};
 use itertools::{Itertools, any};
 
 use crate::{
+    category,
     cli::summary::Arguments,
     error::Result,
-    handler::day,
     model::{Category, Mode, Record, RecordType, Summary},
     printer::SummaryPrinter,
     repository::Repository,
@@ -98,7 +98,7 @@ fn summarise_month(month: NaiveDate, records: &[Record]) -> Summary {
     let workdays = month
         .iter_days()
         .take_while(|date| date.month() == month.month())
-        .filter(|date| day::category(date) == Category::Workday)
+        .filter(|date| category::category(date) == Category::Workday)
         .map(|date| excluded.get(&date).unwrap_or(&1.0f32))
         .sum();
 

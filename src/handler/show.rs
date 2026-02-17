@@ -23,19 +23,18 @@ pub fn show(args: &Arguments, repository: &dyn Repository, printer: &dyn Printer
         &sorted.as_slice()[0..args.top()]
     };
 
-    printer.print(truncated);
-    Ok(())
+    printer.print(truncated)
 }
 
 #[cfg(test)]
 mod tests {
-
     use std::sync::Mutex;
 
     use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
     use uuid::Uuid;
 
     use crate::{
+        error::Result,
         model::{Key, Mode, RecordType},
         repository::test_utils::{FailingRepository, InMemoryRepository},
     };
@@ -132,8 +131,9 @@ mod tests {
     }
 
     impl Printer for InMemoryPrinter {
-        fn print(&self, records: &[Record]) {
+        fn print(&self, records: &[Record]) -> Result<()> {
             self.printed.lock().unwrap().append(&mut records.to_vec());
+            Ok(())
         }
     }
 }

@@ -27,24 +27,25 @@ pub struct FileRepository {
 }
 
 impl FileRepository {
-    pub fn new() -> Self {
-        let directory = Self::directory();
-        Self {
-            directory: directory.clone(),
-            path: [directory, FILE_NAME.into()].iter().collect(),
-        }
+    pub fn new() -> Result<Self> {
+        Self::directory().map(|dir| Self {
+            directory: dir.clone(),
+            path: [dir, FILE_NAME.into()].iter().collect(),
+        })
     }
 
-    fn directory() -> PathBuf {
+    fn directory() -> Result<PathBuf> {
         let data_directory = match env::var(XDG_DATA_HOME) {
-            Ok(value) => PathBuf::from_str(&value).unwrap(),
+            Ok(value) => PathBuf::from_str(&value).map_err(|e| Error::Io(e.to_string())),
             Err(VarError::NotPresent) => home_dir()
                 .map(|home| [home, ".local/share".into()].iter().collect())
-                .unwrap(),
-            Err(error) => panic!("Invalid `{XDG_DATA_HOME}` value: {error}"),
-        };
+                .ok_or_else(|| Error::Io("Failed to construct repository file directory".into())),
+            Err(error) => Err(Error::Io(format!(
+                "Invalid `{XDG_DATA_HOME}` value: {error}"
+            ))),
+        }?;
 
-        [data_directory, DIRECTORY.into()].iter().collect()
+        Ok([data_directory, DIRECTORY.into()].iter().collect())
     }
 
     fn log_file_exists(&self) -> Result<bool> {

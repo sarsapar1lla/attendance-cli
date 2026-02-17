@@ -19,7 +19,7 @@ mod repository;
 
 fn main() {
     let cli = Cli::parse();
-    let repository = FileRepository::new();
+    let repository = FileRepository::new().expect("Repository can be instantiated");
 
     init_logging(cli.debug());
 

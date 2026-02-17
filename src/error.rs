@@ -15,6 +15,7 @@ pub enum Error {
     RecordExistsForDate(NaiveDate),
     NoRecordToAppend(NaiveDate),
     NoRecordToDelete(NaiveDate),
+    FailedToPrint(String),
 }
 
 impl Display for Error {
@@ -41,6 +42,7 @@ impl Display for Error {
                 f,
                 "Cannot delete record for date '{date}' as no record exists."
             ),
+            Self::FailedToPrint(message) => write!(f, "Failed to print output: {message}."),
         }
     }
 }

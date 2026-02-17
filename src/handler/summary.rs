@@ -5,7 +5,7 @@ use itertools::{Itertools, any};
 
 use crate::{
     cli::summary::Arguments,
-    error::Result,
+    error::{Error, Result},
     model::{Category, Mode, Record, RecordType, Summary},
     printer::summary::Printer,
     repository::Repository,
@@ -18,7 +18,7 @@ pub fn summary(
     now_fn: fn() -> DateTime<Utc>,
 ) -> Result<()> {
     let number_of_months = args.months().unwrap_or(1);
-    let months = last_n_months(number_of_months, now_fn);
+    let months = last_n_months(number_of_months, now_fn)?;
     let records = repository.get()?;
     let filtered: Vec<Record> = records
         .into_iter()
@@ -47,22 +47,21 @@ pub fn summary(
         .collect();
 
     summaries.extend(empty);
-
     summaries.sort_by(|a, b| a.month().cmp(b.month()).reverse());
-
     printer.print(&summaries)
 }
 
-fn last_n_months(n: usize, now_fn: fn() -> DateTime<Utc>) -> Vec<NaiveDate> {
+fn last_n_months(n: usize, now_fn: fn() -> DateTime<Utc>) -> Result<Vec<NaiveDate>> {
     let today = (now_fn)().date_naive();
     let this_month = month_of(today);
-    (0..n)
-        .map(|months_back| {
-            this_month
-                .checked_sub_months(Months::new(u32::try_from(months_back).unwrap()))
-                .unwrap()
-        })
-        .collect()
+
+    let prior_month = |n: usize| -> Result<NaiveDate> {
+        let months = Months::new(u32::try_from(n).map_err(|_| Error::Io("Something".into()))?);
+        this_month
+            .checked_sub_months(months)
+            .ok_or_else(|| Error::Io("Something".into()))
+    };
+    (0..n).map(prior_month).collect()
 }
 
 fn record_in_months(record: &Record, months: &[NaiveDate]) -> bool {

@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand};
 
 pub mod completion;
 pub mod log;
@@ -12,11 +12,18 @@ pub mod summary;
 pub struct Cli {
     #[command(subcommand)]
     command: Command,
+
+    #[arg(long, action = ArgAction::SetTrue, hide = true, global = true)]
+    debug: bool,
 }
 
 impl Cli {
     pub fn command(&self) -> &Command {
         &self.command
+    }
+
+    pub fn debug(&self) -> bool {
+        self.debug
     }
 }
 
@@ -39,6 +46,22 @@ pub enum Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    mod debug_tests {
+        use super::*;
+
+        #[test]
+        fn parses_with_default() {
+            let args = Cli::parse_from(&["attendance", "show"]);
+            assert_eq!(args.debug(), false)
+        }
+
+        #[test]
+        fn parses_with_debug() {
+            let args = Cli::parse_from(&["attendance", "--debug", "show"]);
+            assert_eq!(args.debug(), true)
+        }
+    }
 
     mod completion_tests {
         use crate::cli::completion::{Arguments, Shell};
@@ -67,6 +90,12 @@ mod tests {
         }
 
         #[test]
+        fn parses_with_debug() {
+            let args = Cli::parse_from(&["attendance", "completion", "zsh", "--debug"]);
+            assert_eq!(args.debug(), true)
+        }
+
+        #[test]
         fn returns_error_if_invalid_shell() {
             let args = Cli::try_parse_from(&["attendance", "completion", "nushell"]);
             assert!(args.is_err())
@@ -88,6 +117,12 @@ mod tests {
                 .mode(Mode::Create)
                 .build();
             assert_eq!(args.command(), &Command::Log(expected))
+        }
+
+        #[test]
+        fn parses_with_debug() {
+            let args = Cli::parse_from(&["attendance", "log", "--debug"]);
+            assert_eq!(args.debug(), true)
         }
 
         mod record_type_tests {
@@ -267,6 +302,12 @@ mod tests {
             assert_eq!(args.command(), &Command::Show(expected))
         }
 
+        #[test]
+        fn parses_with_debug() {
+            let args = Cli::parse_from(&["attendance", "show", "--debug"]);
+            assert_eq!(args.debug(), true)
+        }
+
         mod top_tests {
             use super::*;
 
@@ -317,6 +358,12 @@ mod tests {
             let args = Cli::parse_from(&["attendance", "summary"]);
             let expected = Arguments::builder().json(false).build();
             assert_eq!(args.command(), &Command::Summary(expected))
+        }
+
+        #[test]
+        fn parses_with_debug() {
+            let args = Cli::parse_from(&["attendance", "summary", "--debug"]);
+            assert_eq!(args.debug(), true)
         }
 
         #[test]

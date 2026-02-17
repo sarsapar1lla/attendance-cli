@@ -18,10 +18,10 @@ mod printer;
 mod repository;
 
 fn main() {
-    tracing_subscriber::fmt::init();
-
     let cli = Cli::parse();
     let repository = FileRepository::new();
+
+    init_logging(cli.debug());
 
     let result = match cli.command() {
         Command::Completion(args) => {
@@ -40,4 +40,17 @@ fn main() {
         Ok(()) => {}
         Err(error) => tracing::error!("{error}"),
     }
+}
+
+fn init_logging(debug: bool) {
+    let level = if debug {
+        tracing::level_filters::LevelFilter::DEBUG
+    } else {
+        tracing::level_filters::LevelFilter::WARN
+    };
+    let format = tracing_subscriber::fmt::format().pretty();
+    tracing_subscriber::fmt()
+        .event_format(format)
+        .with_max_level(level)
+        .init();
 }

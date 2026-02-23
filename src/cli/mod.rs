@@ -39,6 +39,10 @@ pub enum Command {
     /// Show log
     Show(show::Arguments),
 
+    /// Output Cli spec
+    #[command(hide = true)]
+    Spec,
+
     /// Summarise attendance
     Summary(summary::Arguments),
 }
@@ -345,6 +349,16 @@ mod tests {
                 let result = Cli::try_parse_from(&["attendance", "show", "--date", "fish"]);
                 assert!(result.is_err())
             }
+        }
+    }
+
+    mod spec_tests {
+        use super::*;
+
+        #[test]
+        fn parses() {
+            let args = Cli::parse_from(&["attendance", "spec"]);
+            assert_eq!(args.command(), &Command::Spec)
         }
     }
 

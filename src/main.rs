@@ -30,6 +30,10 @@ fn main() {
         }
         Command::Log(args) => handler::log(args, &repository),
         Command::Show(args) => handler::show(args, &repository, &record::Table),
+        Command::Spec => {
+            handler::spec(&mut io::stdout());
+            Ok(())
+        }
         Command::Summary(args) => {
             let printer = summary::from_args(args);
             handler::summary(args, &repository, printer.as_ref(), Utc::now)

@@ -1,8 +1,8 @@
 # attendance-cli
 
-CLI for tracking office attendance
-
 [![Run tests](https://github.com/sarsapar1lla/attendance-cli/actions/workflows/workflow.yaml/badge.svg)](https://github.com/sarsapar1lla/attendance-cli/actions/workflows/workflow.yaml)
+
+Attendance is a simple CLI for tracking your office attendance.
 
 ## Installation
 
@@ -13,6 +13,8 @@ $ cargo install --git https://github.com/sarsapar1lla/attendance-cli --locked
 ```
 
 ## Basic Commands
+
+> See the [docs](./docs/index.md) for details on all available commands and options.
 
 ### Log attendance
 
@@ -29,8 +31,6 @@ $ attendance log --type wfh
 ```
 
 To append or delete a record, use the `--mode` option.
-
-> See `attendance log --help` for all available options.
 
 ### Summarise attendance
 
@@ -79,3 +79,16 @@ To run all tests, use:
 ```shell
 $ cargo test
 ```
+
+### Pre-commit
+
+This project uses [`prek`](https://github.com/j178/prek) to run pre-commit hooks.
+
+To install hooks locally, use:
+
+```shell
+$ prek install
+```
+
+CLI docs are automatically generated using [`usage`](https://usage.jdx.dev/). Follow the
+installation guide [here](https://usage.jdx.dev/cli/#installation).

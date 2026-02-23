@@ -5,3 +5,10 @@ repos:
       - id: fmt
       - id: cargo-check
       - id: clippy
+  - repo: local
+    hooks:
+    - id: generate-docs
+      name: Generate CLI docs
+      language: unsupported_script
+      entry: ./docs/generate.sh
+      files: src/

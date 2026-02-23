@@ -1,0 +1,51 @@
+name attendance
+bin attendance
+version "0.1.0"
+about "Attendance logger"
+usage "Usage: attendance <COMMAND>"
+flag --debug hide=#true global=#true
+cmd completion help="Generate completions" {
+    arg <SHELL> {
+        choices bash fish zsh
+    }
+}
+cmd log help="Log attendance" {
+    flag --type default=office {
+        arg <RECORD_TYPE> {
+            choices office wfh al sick other
+        }
+    }
+    flag --date help="Date to log. If not provided, today's date will be used." {
+        arg <DATE>
+    }
+    flag --half-day {
+        arg <HALF_DAY> {
+            choices am pm
+        }
+    }
+    flag --description {
+        arg <DESCRIPTION>
+    }
+    flag --mode default=create {
+        arg <MODE> {
+            choices create append delete
+        }
+    }
+}
+cmd show help="Show log" {
+    flag --top help="Limit the number of records returned" default="10" {
+        arg <TOP>
+    }
+    flag --date help="Show records for a specific date" {
+        arg <DATE>
+    }
+}
+cmd spec hide=#true help="Output Cli spec"
+cmd summary help="Summarise attendance" {
+    flag --months help="Number of months to summarise" {
+        long_help "Number of months to summarise\n\nWhen not provided only the current month will be summarised"
+        arg <MONTHS>
+    }
+    flag --json help="Output as JSON"
+}
+

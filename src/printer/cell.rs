@@ -1,5 +1,7 @@
 use comfy_table::{Attribute, Cell, CellAlignment};
 
+pub type Row = Vec<Cell>;
+
 pub fn header(name: &str) -> Cell {
     Cell::new(name)
         .set_alignment(CellAlignment::Center)

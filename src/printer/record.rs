@@ -7,8 +7,9 @@ use comfy_table::{
 };
 
 use crate::{
+    error::{Error, Result},
     model::{HalfDay, Key, Mode, Record},
-    printer::cell::header,
+    printer::cell::{Row, header},
 };
 
 static NULL_CELL: LazyLock<Cell> = LazyLock::new(|| {
@@ -18,14 +19,17 @@ static NULL_CELL: LazyLock<Cell> = LazyLock::new(|| {
 });
 
 pub trait Printer {
-    fn print(&self, records: &[Record]);
+    fn print(&self, records: &[Record]) -> Result<()>;
 }
 
 pub struct Table;
 
 impl Printer for Table {
-    fn print(&self, records: &[Record]) {
-        let rows: Vec<Vec<Cell>> = records.iter().map(Table::row_from).collect();
+    fn print(&self, records: &[Record]) -> Result<()> {
+        let rows: Vec<Row> = records
+            .iter()
+            .map(Table::row_from)
+            .collect::<Result<Vec<Row>>>()?;
         let mut table = comfy_table::Table::new();
         table
             .load_preset(UTF8_FULL_CONDENSED)
@@ -35,11 +39,12 @@ impl Printer for Table {
             .add_rows(rows);
 
         print!("{table}");
+        Ok(())
     }
 }
 
 impl Table {
-    fn row_from(record: &Record) -> Vec<Cell> {
+    fn row_from(record: &Record) -> Result<Row> {
         let row_colour = match record.mode() {
             Mode::Create => Color::Green,
             Mode::Append => Color::DarkYellow,
@@ -69,7 +74,7 @@ impl Table {
                     .set_alignment(CellAlignment::Left),
             ),
         };
-        vec![
+        Ok(vec![
             date.fg(row_colour),
             Cell::new(record.record_type()).fg(row_colour),
             half_day,
@@ -81,13 +86,13 @@ impl Table {
                 record
                     .created()
                     .duration_trunc(Duration::seconds(1))
-                    .unwrap(),
+                    .map_err(|e| Error::FailedToPrint(e.to_string()))?,
             )
             .fg(row_colour),
-        ]
+        ])
     }
 
-    fn header() -> Vec<Cell> {
+    fn header() -> Row {
         vec![
             header("Date"),
             header("Where?"),

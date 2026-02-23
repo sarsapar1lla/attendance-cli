@@ -10,7 +10,7 @@ const BANK_HOLIDAY_JSON: &str = include_str!(concat!(
 ));
 
 static BANK_HOLIDAYS: LazyLock<Vec<NaiveDate>> =
-    LazyLock::new(|| serde_json::from_str(BANK_HOLIDAY_JSON).unwrap());
+    LazyLock::new(|| serde_json::from_str(BANK_HOLIDAY_JSON).expect("File is valid json"));
 
 impl From<&NaiveDate> for Category {
     fn from(value: &NaiveDate) -> Self {

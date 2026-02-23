@@ -7,7 +7,7 @@ use crate::{
     cli::summary::Arguments,
     error::{Error, Result},
     model::Summary,
-    printer::cell::header,
+    printer::cell::{Row, header},
 };
 
 pub trait Printer {
@@ -52,7 +52,7 @@ impl Printer for Table {
 }
 
 impl Table {
-    fn row_from(summary: &Summary) -> Vec<Cell> {
+    fn row_from(summary: &Summary) -> Row {
         let month = summary.month().format("%B %Y");
         let attendance = (summary.attendance() * 100.0).round();
         let attendance = format!("{attendance}%");
@@ -72,7 +72,7 @@ impl Table {
         ]
     }
 
-    fn header() -> Vec<Cell> {
+    fn header() -> Row {
         vec![
             header("Month"),
             header("Target Days"),

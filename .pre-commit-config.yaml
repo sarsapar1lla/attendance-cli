@@ -10,5 +10,5 @@ repos:
     - id: generate-docs
       name: Generate CLI docs
       language: unsupported_script
-      entry: ./docs/generate.sh
+      entry: ./scripts/generate-docs.sh
       files: src/

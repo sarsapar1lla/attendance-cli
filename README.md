@@ -14,7 +14,7 @@ $ cargo install --git https://github.com/sarsapar1lla/attendance-cli --locked
 
 ## Basic Commands
 
-> See the [docs](./docs/index.md) for details on all available commands and options.
+> See the [docs](./docs/attendance.md) for details on all available commands and options.
 
 ### Log attendance
 

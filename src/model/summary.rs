@@ -1,11 +1,11 @@
 use bon::Builder;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde::Serialize;
 
 #[derive(Debug, Builder, Serialize)]
 #[cfg_attr(test, derive(PartialEq, Clone))]
 pub struct Summary {
-    month: NaiveDate,
+    month: Date,
     target_days: f32,
     office_days: f32,
     workdays: f32,
@@ -13,7 +13,7 @@ pub struct Summary {
 }
 
 impl Summary {
-    pub fn month(&self) -> &NaiveDate {
+    pub fn month(&self) -> &Date {
         &self.month
     }
 

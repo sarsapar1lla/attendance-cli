@@ -107,7 +107,6 @@ mod tests {
     }
 
     mod log_tests {
-        use chrono::NaiveDate;
 
         use crate::cli::log::{Arguments, HalfDay, Mode, RecordType};
 
@@ -167,7 +166,7 @@ mod tests {
                 let args = Cli::parse_from(&["attendance", "log", "--date", "2025-12-01"]);
                 let expected = Arguments::builder()
                     .record_type(RecordType::Office)
-                    .date(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap())
+                    .date(jiff::civil::date(2025, 12, 1))
                     .mode(Mode::Create)
                     .build();
                 assert_eq!(args.command(), &Command::Log(expected))
@@ -285,7 +284,7 @@ mod tests {
             ]);
             let expected = Arguments::builder()
                 .record_type(RecordType::AnnualLeave)
-                .date(NaiveDate::from_ymd_opt(2025, 12, 3).unwrap())
+                .date(jiff::civil::date(2025, 12, 3))
                 .half_day(HalfDay::Am)
                 .description("Monza".into())
                 .mode(Mode::Append)
@@ -330,7 +329,6 @@ mod tests {
         }
 
         mod date_tests {
-            use chrono::NaiveDate;
 
             use super::*;
 
@@ -339,7 +337,7 @@ mod tests {
                 let args = Cli::parse_from(&["attendance", "show", "--date", "2025-12-01"]);
                 let expected = Arguments::builder()
                     .top(10)
-                    .date(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap())
+                    .date(jiff::civil::date(2025, 12, 1))
                     .build();
                 assert_eq!(args.command(), &Command::Show(expected))
             }

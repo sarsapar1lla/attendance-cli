@@ -1,13 +1,13 @@
 use std::sync::LazyLock;
 
-use chrono::{Duration, DurationRound};
 use comfy_table::{
     Attribute, Cell, CellAlignment, Color, ContentArrangement, modifiers::UTF8_ROUND_CORNERS,
     presets::UTF8_FULL_CONDENSED,
 };
+use jiff::tz::TimeZone;
 
 use crate::{
-    error::{Error, Result},
+    error::Result,
     model::{HalfDay, Key, Mode, Record},
     printer::cell::{Row, header},
 };
@@ -26,10 +26,7 @@ pub struct Table;
 
 impl Printer for Table {
     fn print(&self, records: &[Record]) -> Result<()> {
-        let rows: Vec<Row> = records
-            .iter()
-            .map(Table::row_from)
-            .collect::<Result<Vec<Row>>>()?;
+        let rows = records.iter().map(Table::row_from);
         let mut table = comfy_table::Table::new();
         table
             .load_preset(UTF8_FULL_CONDENSED)
@@ -44,22 +41,23 @@ impl Printer for Table {
 }
 
 impl Table {
-    fn row_from(record: &Record) -> Result<Row> {
+    fn row_from(record: &Record) -> Row {
         let row_colour = match record.mode() {
             Mode::Create => Color::Green,
             Mode::Append => Color::DarkYellow,
             Mode::Delete => Color::Red,
         };
+        let date_format = "%Y-%m-%d (%a)";
         let (date, half_day) = match *record.key() {
             Key::FullDay(date) => (
-                Cell::new(date),
+                Cell::new(date.strftime(date_format)),
                 NULL_CELL.clone().set_alignment(CellAlignment::Center),
             ),
             Key::HalfDay {
                 date,
                 half: HalfDay::Am,
             } => (
-                Cell::new(date),
+                Cell::new(date.strftime(date_format)),
                 Cell::new("Morning")
                     .fg(row_colour)
                     .set_alignment(CellAlignment::Left),
@@ -68,13 +66,13 @@ impl Table {
                 date,
                 half: HalfDay::Pm,
             } => (
-                Cell::new(date),
+                Cell::new(date.strftime(date_format)),
                 Cell::new("Afternoon")
                     .fg(row_colour)
                     .set_alignment(CellAlignment::Left),
             ),
         };
-        Ok(vec![
+        vec![
             date.fg(row_colour),
             Cell::new(record.record_type()).fg(row_colour),
             half_day,
@@ -85,11 +83,11 @@ impl Table {
             Cell::new(
                 record
                     .created()
-                    .duration_trunc(Duration::seconds(1))
-                    .map_err(|e| Error::FailedToPrint(e.to_string()))?,
+                    .to_zoned(TimeZone::system())
+                    .strftime("%Y-%m-%dT%H:%M:%S %Z"),
             )
             .fg(row_colour),
-        ])
+        ]
     }
 
     fn header() -> Row {

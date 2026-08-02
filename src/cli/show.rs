@@ -1,5 +1,5 @@
-use chrono::NaiveDate;
 use clap::Args;
+use jiff::civil::Date;
 
 #[derive(Debug, Args)]
 #[cfg_attr(test, derive(PartialEq, bon::Builder))]
@@ -10,7 +10,7 @@ pub struct Arguments {
 
     /// Show records for a specific date
     #[arg(long)]
-    date: Option<NaiveDate>,
+    date: Option<Date>,
 }
 
 impl Arguments {
@@ -18,7 +18,7 @@ impl Arguments {
         self.top
     }
 
-    pub fn date(&self) -> Option<&NaiveDate> {
+    pub fn date(&self) -> Option<&Date> {
         self.date.as_ref()
     }
 }

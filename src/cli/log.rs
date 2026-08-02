@@ -1,5 +1,5 @@
-use chrono::NaiveDate;
 use clap::{Args, ValueEnum};
+use jiff::civil::Date;
 
 use crate::model;
 
@@ -13,7 +13,7 @@ pub struct Arguments {
         long,
         help = "Date to log. If not provided, today's date will be used."
     )]
-    date: Option<NaiveDate>,
+    date: Option<Date>,
 
     #[arg(long, value_enum)]
     half_day: Option<HalfDay>,
@@ -36,7 +36,7 @@ impl Arguments {
         }
     }
 
-    pub fn date(&self) -> Option<&NaiveDate> {
+    pub fn date(&self) -> Option<&Date> {
         self.date.as_ref()
     }
 

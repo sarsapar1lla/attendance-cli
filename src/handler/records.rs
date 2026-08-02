@@ -34,8 +34,7 @@ impl Records {
 
         records_on_day
             .last()
-            .filter(|r| r.mode() != &Mode::Delete)
-            .is_some()
+            .is_some_and(|r| r.mode() != &Mode::Delete)
     }
 }
 
@@ -44,7 +43,7 @@ mod tests {
     use super::*;
 
     mod records_tests {
-        use chrono::{NaiveDate, TimeDelta, Utc};
+        use jiff::{Timestamp, ToSpan};
         use uuid::Uuid;
 
         use crate::model::{HalfDay, RecordType};
@@ -52,31 +51,30 @@ mod tests {
         use super::*;
 
         mod full_day_tests {
-            use chrono::NaiveDate;
 
             use super::*;
 
             #[test]
             fn returns_true_if_latest_record_for_day_is_active() {
-                let key = Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap());
+                let key = Key::FullDay(jiff::civil::date(2025, 12, 1));
                 assert!(records().contains(&key))
             }
 
             #[test]
             fn returns_true_if_latest_record_for_part_of_day_is_active() {
-                let key = Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 3).unwrap());
+                let key = Key::FullDay(jiff::civil::date(2025, 12, 3));
                 assert!(records().contains(&key))
             }
 
             #[test]
             fn returns_false_if_latest_record_for_day_is_deleted() {
-                let key = Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 2).unwrap());
+                let key = Key::FullDay(jiff::civil::date(2025, 12, 2));
                 assert!(!records().contains(&key))
             }
 
             #[test]
             fn returns_false_if_no_record_for_day() {
-                let key = Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 5).unwrap());
+                let key = Key::FullDay(jiff::civil::date(2025, 12, 5));
                 assert!(!records().contains(&key))
             }
         }
@@ -89,7 +87,7 @@ mod tests {
             #[test]
             fn returns_true_if_latest_record_for_part_of_day_is_active() {
                 let key = Key::HalfDay {
-                    date: NaiveDate::from_ymd_opt(2025, 12, 3).unwrap(),
+                    date: jiff::civil::date(2025, 12, 3),
                     half: HalfDay::Pm,
                 };
                 assert!(records().contains(&key))
@@ -98,7 +96,7 @@ mod tests {
             #[test]
             fn returns_true_if_latest_record_for_full_day_is_active() {
                 let key = Key::HalfDay {
-                    date: NaiveDate::from_ymd_opt(2025, 12, 1).unwrap(),
+                    date: jiff::civil::date(2025, 12, 1),
                     half: HalfDay::Am,
                 };
                 assert!(records().contains(&key))
@@ -107,7 +105,7 @@ mod tests {
             #[test]
             fn returns_false_if_latest_record_for_part_of_day_is_deleted() {
                 let key = Key::HalfDay {
-                    date: NaiveDate::from_ymd_opt(2025, 12, 3).unwrap(),
+                    date: jiff::civil::date(2025, 12, 3),
                     half: HalfDay::Am,
                 };
                 assert!(!records().contains(&key))
@@ -116,7 +114,7 @@ mod tests {
             #[test]
             fn returns_false_if_latest_record_for_full_day_is_deleted() {
                 let key = Key::HalfDay {
-                    date: NaiveDate::from_ymd_opt(2025, 12, 2).unwrap(),
+                    date: jiff::civil::date(2025, 12, 2),
                     half: HalfDay::Am,
                 };
                 assert!(!records().contains(&key))
@@ -125,7 +123,7 @@ mod tests {
             #[test]
             fn returns_false_if_no_record_for_part_of_day() {
                 let key = Key::HalfDay {
-                    date: NaiveDate::from_ymd_opt(2025, 12, 4).unwrap(),
+                    date: jiff::civil::date(2025, 12, 4),
                     half: HalfDay::Pm,
                 };
                 assert!(!records().contains(&key))
@@ -134,7 +132,7 @@ mod tests {
             #[test]
             fn returns_false_if_no_record_for_day() {
                 let key = Key::HalfDay {
-                    date: NaiveDate::from_ymd_opt(2025, 12, 5).unwrap(),
+                    date: jiff::civil::date(2025, 12, 5),
                     half: HalfDay::Am,
                 };
                 assert!(!records().contains(&key))
@@ -142,7 +140,7 @@ mod tests {
         }
 
         fn records() -> Records {
-            let created = Utc::now();
+            let created = Timestamp::now();
             Records {
                 records: vec![
                     Record::builder()
@@ -150,25 +148,21 @@ mod tests {
                         .created(created)
                         .mode(Mode::Create)
                         .record_type(RecordType::Office)
-                        .key(Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap()))
+                        .key(Key::FullDay(jiff::civil::date(2025, 12, 1)))
                         .build(),
                     Record::builder()
                         .id(Uuid::new_v4())
                         .created(created)
                         .mode(Mode::Create)
                         .record_type(RecordType::Office)
-                        .key(Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 2).unwrap()))
+                        .key(Key::FullDay(jiff::civil::date(2025, 12, 2)))
                         .build(),
                     Record::builder()
                         .id(Uuid::new_v4())
-                        .created(
-                            created
-                                .checked_add_signed(TimeDelta::new(10, 0).unwrap())
-                                .unwrap(),
-                        )
+                        .created(created.checked_add(10.seconds()).unwrap())
                         .mode(Mode::Delete)
                         .record_type(RecordType::Office)
-                        .key(Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 2).unwrap()))
+                        .key(Key::FullDay(jiff::civil::date(2025, 12, 2)))
                         .build(),
                     Record::builder()
                         .id(Uuid::new_v4())
@@ -176,35 +170,27 @@ mod tests {
                         .mode(Mode::Create)
                         .record_type(RecordType::Office)
                         .key(Key::HalfDay {
-                            date: NaiveDate::from_ymd_opt(2025, 12, 3).unwrap(),
+                            date: jiff::civil::date(2025, 12, 3),
                             half: HalfDay::Am,
                         })
                         .build(),
                     Record::builder()
                         .id(Uuid::new_v4())
-                        .created(
-                            created
-                                .checked_add_signed(TimeDelta::new(10, 0).unwrap())
-                                .unwrap(),
-                        )
+                        .created(created.checked_add(10.seconds()).unwrap())
                         .mode(Mode::Delete)
                         .record_type(RecordType::Office)
                         .key(Key::HalfDay {
-                            date: NaiveDate::from_ymd_opt(2025, 12, 3).unwrap(),
+                            date: jiff::civil::date(2025, 12, 3),
                             half: HalfDay::Am,
                         })
                         .build(),
                     Record::builder()
                         .id(Uuid::new_v4())
-                        .created(
-                            created
-                                .checked_add_signed(TimeDelta::new(20, 0).unwrap())
-                                .unwrap(),
-                        )
+                        .created(created.checked_add(20.seconds()).unwrap())
                         .mode(Mode::Create)
                         .record_type(RecordType::Office)
                         .key(Key::HalfDay {
-                            date: NaiveDate::from_ymd_opt(2025, 12, 3).unwrap(),
+                            date: jiff::civil::date(2025, 12, 3),
                             half: HalfDay::Pm,
                         })
                         .build(),
@@ -214,7 +200,7 @@ mod tests {
                         .mode(Mode::Create)
                         .record_type(RecordType::Office)
                         .key(Key::HalfDay {
-                            date: NaiveDate::from_ymd_opt(2025, 12, 4).unwrap(),
+                            date: jiff::civil::date(2025, 12, 4),
                             half: HalfDay::Am,
                         })
                         .build(),

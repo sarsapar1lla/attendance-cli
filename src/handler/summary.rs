@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, Datelike, Months, NaiveDate, Utc};
 use itertools::{Itertools, any};
+use jiff::{
+    ToSpan,
+    civil::{Date, DateTime},
+};
 
 use crate::{
     cli::summary::Arguments,
-    error::{Error, Result},
+    error::Result,
     model::{Category, Mode, Record, RecordType, Summary},
     printer::summary::Printer,
     repository::Repository,
@@ -15,10 +18,10 @@ pub fn summary(
     args: &Arguments,
     repository: &dyn Repository,
     printer: &dyn Printer,
-    now_fn: fn() -> DateTime<Utc>,
+    now_fn: fn() -> DateTime,
 ) -> Result<()> {
     let number_of_months = args.months().unwrap_or(1);
-    let months = last_n_months(number_of_months, now_fn)?;
+    let months = last_n_months(number_of_months, now_fn);
     let records = repository.get()?;
     let filtered: Vec<Record> = records
         .into_iter()
@@ -51,34 +54,30 @@ pub fn summary(
     printer.print(&summaries)
 }
 
-fn last_n_months(n: usize, now_fn: fn() -> DateTime<Utc>) -> Result<Vec<NaiveDate>> {
-    let today = (now_fn)().date_naive();
-    let this_month = month_of(today);
+fn last_n_months(n: usize, now_fn: fn() -> DateTime) -> Vec<Date> {
+    let today = (now_fn)().date();
+    let this_month = today.first_of_month();
 
-    let prior_month = |n: usize| -> Result<NaiveDate> {
-        let months = Months::new(u32::try_from(n).map_err(|_| Error::Io("Something".into()))?);
-        this_month
-            .checked_sub_months(months)
-            .ok_or_else(|| Error::Io("Something".into()))
-    };
-    (0..n).map(prior_month).collect()
+    this_month.series(-1.months()).take(n).collect()
 }
 
-fn record_in_months(record: &Record, months: &[NaiveDate]) -> bool {
-    let month = month_of(record.key().date());
+fn record_in_months(record: &Record, months: &[Date]) -> bool {
+    let month = record.key().date().first_of_month();
     months.contains(&month)
 }
 
 fn summarise(records: Vec<Record>) -> Vec<Summary> {
-    let months = records.into_iter().chunk_by(|r| month_of(r.key().date()));
+    let months = records
+        .into_iter()
+        .chunk_by(|r| r.key().date().first_of_month());
     months
         .into_iter()
         .map(|month| summarise_month(month.0, month.1.collect_vec().as_slice()))
         .collect()
 }
 
-fn summarise_month(month: NaiveDate, records: &[Record]) -> Summary {
-    let excluded: HashMap<NaiveDate, f32> = records
+fn summarise_month(month: Date, records: &[Record]) -> Summary {
+    let excluded: HashMap<Date, f32> = records
         .iter()
         .filter(|r| r.record_type() != &RecordType::Office)
         .map(|r| {
@@ -90,7 +89,7 @@ fn summarise_month(month: NaiveDate, records: &[Record]) -> Summary {
         .collect();
 
     let workdays = month
-        .iter_days()
+        .series(1.days())
         .take_while(|date| date.month() == month.month())
         .filter(|date| Category::from(date) == Category::Workday)
         .map(|date| excluded.get(&date).unwrap_or(&1.0f32))
@@ -119,15 +118,11 @@ fn summarise_month(month: NaiveDate, records: &[Record]) -> Summary {
         .build()
 }
 
-fn month_of(date: NaiveDate) -> NaiveDate {
-    date.with_day(1).expect("Every month has a first day")
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
 
-    use chrono::{NaiveDateTime, NaiveTime};
+    use jiff::Zoned;
 
     use crate::repository::test_utils::{FailingRepository, InMemoryRepository};
 
@@ -139,7 +134,7 @@ mod tests {
             &Arguments::builder().json(false).build(),
             &FailingRepository,
             &InMemoryPrinter::new(),
-            Utc::now,
+            || Zoned::now().datetime(),
         );
 
         assert!(result.is_err())
@@ -157,7 +152,7 @@ mod tests {
             printer.printed(),
             vec![
                 Summary::builder()
-                    .month(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap())
+                    .month(jiff::civil::date(2025, 12, 1))
                     .target_days(10.5)
                     .office_days(0.0)
                     .workdays(21.0)
@@ -167,57 +162,11 @@ mod tests {
         )
     }
 
-    // #[test]
-    // fn summarises_latest_month() {
-    //     let args = Arguments::builder().build();
-    //     let repository = InMemoryRepository::new(&[Record::builder().build()]);
-    //     let printer = InMemoryPrinter::new();
-
-    //     summary(&args, &repository, &printer, now).unwrap();
-
-    //     assert_eq!(
-    //         printer.printed(),
-    //         vec![
-    //             Summary::builder()
-    //                 .month(SummaryMonth::new(
-    //                     NaiveDate::from_ymd_opt(2025, 12, 1).unwrap()
-    //                 ))
-    //                 .office_days(0.0)
-    //                 .workdays(21.0)
-    //                 .attendance(0.0)
-    //                 .build()
-    //         ]
-    //     )
-    // }
-
-    // #[test]
-    // fn summarises_latest_n_months() {
-    //     let args = Arguments::builder().months(2).build();
-    //     let created = Utc::now();
-    //     let repository = InMemoryRepository::new(&[Record::builder()
-    //         .id(Uuid::new_v4())
-    //         .created(created)
-    //         .mode(Mode::Create)
-    //         .record_type(RecordType::Office)
-    //         .key(Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 12).unwrap()))
-    //         .build()]);
-    //     let printer = InMemoryPrinter::new();
-
-    //     summary(&args, &repository, &printer, now).unwrap();
-
-    //     assert_eq!(printer.printed(), vec![])
-    // }
-
-    fn now() -> DateTime<Utc> {
-        NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2025, 12, 3).unwrap(),
-            NaiveTime::from_hms_opt(10, 0, 0).unwrap(),
-        )
-        .and_utc()
+    fn now() -> DateTime {
+        jiff::civil::datetime(2025, 12, 3, 10, 0, 0, 0)
     }
 
     mod summarise_tests {
-        use chrono::TimeZone;
         use uuid::Uuid;
 
         use crate::model::Key;
@@ -232,21 +181,21 @@ mod tests {
                 actual,
                 vec![
                     Summary::builder()
-                        .month(NaiveDate::from_ymd_opt(2025, 9, 1).unwrap())
+                        .month(jiff::civil::date(2025, 9, 1))
                         .target_days(11.0)
                         .office_days(1.0)
                         .workdays(22.0)
                         .attendance(0.045)
                         .build(),
                     Summary::builder()
-                        .month(NaiveDate::from_ymd_opt(2025, 10, 1).unwrap())
+                        .month(jiff::civil::date(2025, 10, 1))
                         .target_days(11.5)
                         .office_days(1.0)
                         .workdays(23.0)
                         .attendance(0.043)
                         .build(),
                     Summary::builder()
-                        .month(NaiveDate::from_ymd_opt(2025, 11, 1).unwrap())
+                        .month(jiff::civil::date(2025, 11, 1))
                         .target_days(10.0)
                         .office_days(1.0)
                         .workdays(20.0)
@@ -256,21 +205,23 @@ mod tests {
             )
         }
 
-        fn record(month: u32) -> Record {
+        fn record(month: i8) -> Record {
             Record::builder()
                 .id(Uuid::parse_str("0a766a52-c869-4be5-a695-4b258e2f2e87").unwrap())
-                .created(Utc.with_ymd_and_hms(2025, 10, 31, 10, 0, 0).unwrap())
+                .created(
+                    jiff::civil::datetime(2025, 10, 31, 10, 0, 0, 0)
+                        .in_tz("Europe/London")
+                        .unwrap()
+                        .timestamp(),
+                )
                 .mode(Mode::Create)
                 .record_type(RecordType::Office)
-                .key(Key::FullDay(
-                    NaiveDate::from_ymd_opt(2025, month, 1).unwrap(),
-                ))
+                .key(Key::FullDay(jiff::civil::date(2025, month, 1)))
                 .build()
         }
     }
 
     mod summarise_month_tests {
-        use chrono::TimeZone;
         use uuid::Uuid;
 
         use crate::model::Key;
@@ -279,7 +230,7 @@ mod tests {
 
         #[test]
         fn counts_office_days() {
-            let month = NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
+            let month = jiff::civil::date(2025, 10, 1);
             let records = vec![
                 record(1, RecordType::Office),
                 record(2, RecordType::Office),
@@ -291,14 +242,14 @@ mod tests {
 
         #[test]
         fn counts_workdays() {
-            let month = NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
+            let month = jiff::civil::date(2025, 10, 1);
             let actual = summarise_month(month, &[]);
             assert_eq!(actual.workdays(), 23.0)
         }
 
         #[test]
         fn counts_workdays_including_exclusions() {
-            let month = NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
+            let month = jiff::civil::date(2025, 10, 1);
             let records = vec![
                 record(1, RecordType::WorkingFromHome),
                 record(2, RecordType::AnnualLeave),
@@ -310,14 +261,14 @@ mod tests {
 
         #[test]
         fn counts_workdays_excluding_bank_holidays() {
-            let month = NaiveDate::from_ymd_opt(2025, 12, 1).unwrap();
+            let month = jiff::civil::date(2025, 12, 1);
             let actual = summarise_month(month, &[]);
             assert_eq!(actual.workdays(), 21.0)
         }
 
         #[test]
         fn calculates_attendance() {
-            let month = NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
+            let month = jiff::civil::date(2025, 10, 1);
             let records = vec![
                 record(1, RecordType::Office),
                 record(2, RecordType::Office),
@@ -329,20 +280,23 @@ mod tests {
 
         #[test]
         fn calculates_target_days() {
-            let month = NaiveDate::from_ymd_opt(2025, 10, 1).unwrap();
+            let month = jiff::civil::date(2025, 10, 1);
             let actual = summarise_month(month, &[]);
             assert_eq!(actual.target_days(), 11.5)
         }
 
-        fn record(day: u32, record_type: RecordType) -> Record {
+        fn record(day: i8, record_type: RecordType) -> Record {
             Record::builder()
                 .id(Uuid::parse_str("0a766a52-c869-4be5-a695-4b258e2f2e87").unwrap())
-                .created(Utc.with_ymd_and_hms(2025, 10, 31, 10, 0, 0).unwrap())
+                .created(
+                    jiff::civil::datetime(2025, 10, 31, 10, 0, 0, 0)
+                        .in_tz("Europe/London")
+                        .unwrap()
+                        .timestamp(),
+                )
                 .mode(Mode::Create)
                 .record_type(record_type)
-                .key(Key::FullDay(
-                    NaiveDate::from_ymd_opt(2025, 10, day).unwrap(),
-                ))
+                .key(Key::FullDay(jiff::civil::date(2025, 10, day)))
                 .build()
         }
     }

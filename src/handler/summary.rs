@@ -46,7 +46,7 @@ pub fn summary(
     let empty: Vec<Summary> = months
         .into_iter()
         .filter(|month| !any(&summaries, |summary| summary.month() == month))
-        .map(|month| summarise_month(&month, &[]))
+        .map(|month| summarise_month(month, &[]))
         .collect();
 
     summaries.extend(empty);
@@ -72,11 +72,11 @@ fn summarise(records: Vec<Record>) -> Vec<Summary> {
         .chunk_by(|r| r.key().date().first_of_month());
     months
         .into_iter()
-        .map(|month| summarise_month(&month.0, month.1.collect_vec().as_slice()))
+        .map(|month| summarise_month(month.0, month.1.collect_vec().as_slice()))
         .collect()
 }
 
-fn summarise_month(month: &Date, records: &[Record]) -> Summary {
+fn summarise_month(month: Date, records: &[Record]) -> Summary {
     let excluded: HashMap<Date, f32> = records
         .iter()
         .filter(|r| r.record_type() != &RecordType::Office)
@@ -110,7 +110,7 @@ fn summarise_month(month: &Date, records: &[Record]) -> Summary {
     let attendance = (attendance * 1000.0).round() / 1000.0;
 
     Summary::builder()
-        .month(month.to_owned())
+        .month(month)
         .target_days(workdays * 0.50)
         .office_days(office_days)
         .workdays(workdays)
@@ -236,14 +236,14 @@ mod tests {
                 record(2, RecordType::Office),
                 record(6, RecordType::Office),
             ];
-            let actual = summarise_month(&month, &records);
+            let actual = summarise_month(month, &records);
             assert_eq!(actual.office_days(), 3.0)
         }
 
         #[test]
         fn counts_workdays() {
             let month = jiff::civil::date(2025, 10, 1);
-            let actual = summarise_month(&month, &[]);
+            let actual = summarise_month(month, &[]);
             assert_eq!(actual.workdays(), 23.0)
         }
 
@@ -255,14 +255,14 @@ mod tests {
                 record(2, RecordType::AnnualLeave),
                 record(6, RecordType::Sick),
             ];
-            let actual = summarise_month(&month, &records);
+            let actual = summarise_month(month, &records);
             assert_eq!(actual.workdays(), 20.0)
         }
 
         #[test]
         fn counts_workdays_excluding_bank_holidays() {
             let month = jiff::civil::date(2025, 12, 1);
-            let actual = summarise_month(&month, &[]);
+            let actual = summarise_month(month, &[]);
             assert_eq!(actual.workdays(), 21.0)
         }
 
@@ -274,14 +274,14 @@ mod tests {
                 record(2, RecordType::Office),
                 record(6, RecordType::Office),
             ];
-            let actual = summarise_month(&month, &records);
+            let actual = summarise_month(month, &records);
             assert_eq!(actual.attendance(), 0.13)
         }
 
         #[test]
         fn calculates_target_days() {
             let month = jiff::civil::date(2025, 10, 1);
-            let actual = summarise_month(&month, &[]);
+            let actual = summarise_month(month, &[]);
             assert_eq!(actual.target_days(), 11.5)
         }
 

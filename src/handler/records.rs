@@ -34,8 +34,7 @@ impl Records {
 
         records_on_day
             .last()
-            .filter(|r| r.mode() != &Mode::Delete)
-            .is_some()
+            .is_some_and(|r| r.mode() != &Mode::Delete)
     }
 }
 

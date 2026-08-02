@@ -26,10 +26,7 @@ pub struct Table;
 
 impl Printer for Table {
     fn print(&self, records: &[Record]) -> Result<()> {
-        let rows: Vec<Row> = records
-            .iter()
-            .map(Table::row_from)
-            .collect::<Result<Vec<Row>>>()?;
+        let rows = records.iter().map(Table::row_from);
         let mut table = comfy_table::Table::new();
         table
             .load_preset(UTF8_FULL_CONDENSED)
@@ -44,7 +41,7 @@ impl Printer for Table {
 }
 
 impl Table {
-    fn row_from(record: &Record) -> Result<Row> {
+    fn row_from(record: &Record) -> Row {
         let row_colour = match record.mode() {
             Mode::Create => Color::Green,
             Mode::Append => Color::DarkYellow,
@@ -75,7 +72,7 @@ impl Table {
                     .set_alignment(CellAlignment::Left),
             ),
         };
-        Ok(vec![
+        vec![
             date.fg(row_colour),
             Cell::new(record.record_type()).fg(row_colour),
             half_day,
@@ -90,7 +87,7 @@ impl Table {
                     .strftime("%Y-%m-%dT%H:%M:%S %Z"),
             )
             .fg(row_colour),
-        ])
+        ]
     }
 
     fn header() -> Row {

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use crate::model::WeekendDay;
 
@@ -10,12 +10,11 @@ pub enum Error {
     Io(String),
     ReadFailure(String),
     WriteFailure(String),
-    IsWeekend(NaiveDate, WeekendDay),
-    IsBankHoliday(NaiveDate),
-    RecordExistsForDate(NaiveDate),
-    NoRecordToAppend(NaiveDate),
-    NoRecordToDelete(NaiveDate),
-    FailedToPrint(String),
+    IsWeekend(Date, WeekendDay),
+    IsBankHoliday(Date),
+    RecordExistsForDate(Date),
+    NoRecordToAppend(Date),
+    NoRecordToDelete(Date),
 }
 
 impl Display for Error {
@@ -42,7 +41,6 @@ impl Display for Error {
                 f,
                 "Cannot delete record for date '{date}' as no record exists."
             ),
-            Self::FailedToPrint(message) => write!(f, "Failed to print output: {message}."),
         }
     }
 }

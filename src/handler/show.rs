@@ -30,7 +30,6 @@ pub fn show(args: &Arguments, repository: &dyn Repository, printer: &dyn Printer
 mod tests {
     use std::sync::Mutex;
 
-    use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
     use uuid::Uuid;
 
     use crate::{
@@ -89,7 +88,7 @@ mod tests {
 
         let args = Arguments::builder()
             .top(1)
-            .date(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap())
+            .date(jiff::civil::date(2025, 12, 1))
             .build();
         let repository = InMemoryRepository::new(&[first, second.clone(), third]);
         let printer = InMemoryPrinter::new();
@@ -99,18 +98,14 @@ mod tests {
         assert_eq!(printer.printed(), vec![second])
     }
 
-    fn record(day: u32, minute: u32) -> Record {
-        let created = NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2025, 12, day).unwrap(),
-            NaiveTime::from_hms_opt(10, minute, 0).unwrap(),
-        )
-        .and_utc();
+    fn record(day: i8, minute: i8) -> Record {
+        let created = jiff::civil::datetime(2025, 12, day, 10, minute, 0, 0);
         Record::builder()
             .id(Uuid::new_v4())
-            .created(created)
+            .created(created.in_tz("Europe/London").unwrap().timestamp())
             .mode(Mode::Create)
             .record_type(RecordType::Office)
-            .key(Key::FullDay(created.date_naive()))
+            .key(Key::FullDay(created.date()))
             .build()
     }
 

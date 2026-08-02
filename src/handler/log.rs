@@ -1,4 +1,4 @@
-use chrono::Utc;
+use jiff::{Timestamp, tz::TimeZone};
 use uuid::Uuid;
 
 use crate::{
@@ -30,8 +30,11 @@ pub fn log(args: &cli::log::Arguments, repository: &dyn Repository) -> Result<()
 }
 
 fn record_from(args: &cli::log::Arguments) -> Record {
-    let created = Utc::now();
-    let date = args.date().copied().unwrap_or_else(|| created.date_naive());
+    let created = Timestamp::now();
+    let date = args
+        .date()
+        .copied()
+        .unwrap_or_else(|| created.to_zoned(TimeZone::system()).date());
     let key = match args.half_day() {
         None => Key::FullDay(date),
         Some(half) => Key::HalfDay { date, half },
@@ -49,7 +52,7 @@ fn record_from(args: &cli::log::Arguments) -> Record {
 #[cfg(test)]
 mod tests {
 
-    use chrono::NaiveDate;
+    use jiff::{Timestamp, civil::Date};
 
     use crate::{
         cli::log::{self, Arguments},
@@ -71,6 +74,8 @@ mod tests {
     }
 
     mod create_tests {
+        use jiff::civil::Date;
+
         use crate::model::WeekendDay;
 
         use super::*;
@@ -156,7 +161,7 @@ mod tests {
             )
         }
 
-        fn args(record_date: NaiveDate) -> Arguments {
+        fn args(record_date: Date) -> Arguments {
             Arguments::builder()
                 .record_type(log::RecordType::WorkingFromHome)
                 .date(record_date)
@@ -193,7 +198,7 @@ mod tests {
             )
         }
 
-        fn args(record_date: NaiveDate) -> Arguments {
+        fn args(record_date: Date) -> Arguments {
             Arguments::builder()
                 .record_type(log::RecordType::WorkingFromHome)
                 .date(record_date)
@@ -230,7 +235,7 @@ mod tests {
             )
         }
 
-        fn args(record_date: NaiveDate) -> Arguments {
+        fn args(record_date: Date) -> Arguments {
             Arguments::builder()
                 .record_type(log::RecordType::WorkingFromHome)
                 .date(record_date)
@@ -239,14 +244,14 @@ mod tests {
         }
     }
 
-    fn date(day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(2025, 12, day).unwrap()
+    fn date(day: i8) -> Date {
+        jiff::civil::date(2025, 12, day)
     }
 
-    fn record(date: NaiveDate, mode: Mode) -> Record {
+    fn record(date: Date, mode: Mode) -> Record {
         Record::builder()
             .id(Uuid::new_v4())
-            .created(Utc::now())
+            .created(Timestamp::now())
             .mode(mode)
             .record_type(RecordType::WorkingFromHome)
             .key(Key::FullDay(date))

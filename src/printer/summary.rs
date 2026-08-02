@@ -53,7 +53,7 @@ impl Printer for Table {
 
 impl Table {
     fn row_from(summary: &Summary) -> Row {
-        let month = summary.month().format("%B %Y");
+        let month = summary.month().strftime("%B %Y");
         let attendance = (summary.attendance() * 100.0).round();
         let attendance = format!("{attendance}%");
         let attendance_colour = match summary.attendance() {

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use bon::Builder;
-use chrono::{DateTime, NaiveDate, Utc};
+use jiff::{Timestamp, civil::Date};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -41,12 +41,12 @@ pub enum HalfDay {
 
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum Key {
-    FullDay(NaiveDate),
-    HalfDay { date: NaiveDate, half: HalfDay },
+    FullDay(Date),
+    HalfDay { date: Date, half: HalfDay },
 }
 
 impl Key {
-    pub fn date(&self) -> NaiveDate {
+    pub fn date(&self) -> Date {
         match *self {
             Key::FullDay(date) | Key::HalfDay { date, half: _ } => date,
         }
@@ -64,7 +64,7 @@ impl Key {
 #[cfg_attr(test, derive(PartialEq))]
 pub struct Record {
     id: Uuid,
-    created: DateTime<Utc>,
+    created: Timestamp,
     mode: Mode,
     record_type: RecordType,
     key: Key,
@@ -72,7 +72,7 @@ pub struct Record {
 }
 
 impl Record {
-    pub fn created(&self) -> &DateTime<Utc> {
+    pub fn created(&self) -> &Timestamp {
         &self.created
     }
 

@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use chrono::{Datelike, NaiveDate, Weekday};
+use jiff::civil::{Date, Weekday};
 
 use crate::model::{Category, WeekendDay};
 
@@ -9,14 +9,16 @@ const BANK_HOLIDAY_JSON: &str = include_str!(concat!(
     "/data/bank_holidays.json"
 ));
 
-static BANK_HOLIDAYS: LazyLock<Vec<NaiveDate>> =
+static BANK_HOLIDAYS: LazyLock<Vec<Date>> =
     LazyLock::new(|| serde_json::from_str(BANK_HOLIDAY_JSON).expect("File is valid json"));
 
-impl From<&NaiveDate> for Category {
-    fn from(value: &NaiveDate) -> Self {
+impl From<&Date> for Category {
+    fn from(value: &Date) -> Self {
         match value {
-            value if value.weekday() == Weekday::Sat => Category::Weekend(WeekendDay::Saturday),
-            value if value.weekday() == Weekday::Sun => Category::Weekend(WeekendDay::Sunday),
+            value if value.weekday() == Weekday::Saturday => {
+                Category::Weekend(WeekendDay::Saturday)
+            }
+            value if value.weekday() == Weekday::Sunday => Category::Weekend(WeekendDay::Sunday),
             value if BANK_HOLIDAYS.contains(value) => Category::BankHoliday,
             _ => Category::Workday,
         }
@@ -54,7 +56,7 @@ mod tests {
         assert_eq!(Category::from(&date), Category::Workday)
     }
 
-    fn date(day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(2025, 12, day).unwrap()
+    fn date(day: i8) -> Date {
+        jiff::civil::date(2025, 12, day)
     }
 }

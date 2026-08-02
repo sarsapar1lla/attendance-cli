@@ -113,7 +113,6 @@ mod tests {
     use super::*;
 
     mod read_from_tests {
-        use chrono::NaiveDate;
         use uuid::Uuid;
 
         use crate::model::{Key, Mode, RecordType};
@@ -133,7 +132,7 @@ mod tests {
                         .created("2025-12-01T10:00:00Z".parse().unwrap())
                         .mode(Mode::Create)
                         .record_type(RecordType::Office)
-                        .key(Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap()))
+                        .key(Key::FullDay(jiff::civil::date(2025, 12, 1)))
                         .description("Went to the office".into())
                         .build(),
                     Record::builder()
@@ -141,7 +140,7 @@ mod tests {
                         .created("2025-12-01T11:00:00Z".parse().unwrap())
                         .mode(Mode::Append)
                         .record_type(RecordType::AnnualLeave)
-                        .key(Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap()))
+                        .key(Key::FullDay(jiff::civil::date(2025, 12, 1)))
                         .description("Went to the beach".into())
                         .build()
                 ]
@@ -157,7 +156,6 @@ mod tests {
     }
 
     mod write_to_tests {
-        use chrono::NaiveDate;
         use uuid::Uuid;
 
         use crate::model::{Key, Mode, RecordType};
@@ -205,7 +203,7 @@ mod tests {
                 .created("2025-12-01T10:00:00Z".parse().unwrap())
                 .mode(Mode::Create)
                 .record_type(RecordType::Office)
-                .key(Key::FullDay(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap()))
+                .key(Key::FullDay(jiff::civil::date(2025, 12, 1)))
                 .description("Went to the office".into())
                 .build()
         }
@@ -214,7 +212,7 @@ mod tests {
 
 #[cfg(test)]
 pub mod test_utils {
-    use chrono::NaiveDate;
+    use jiff::civil::Date;
 
     use crate::model::Mode;
 
@@ -231,7 +229,7 @@ pub mod test_utils {
             }
         }
 
-        pub fn records(&self) -> Vec<(NaiveDate, Mode)> {
+        pub fn records(&self) -> Vec<(Date, Mode)> {
             self.get()
                 .unwrap()
                 .into_iter()

@@ -1,7 +1,7 @@
 use std::io;
 
-use chrono::Utc;
 use clap::Parser;
+use jiff::Zoned;
 
 use crate::{
     cli::{Cli, Command},
@@ -36,7 +36,9 @@ fn main() {
         }
         Command::Summary(args) => {
             let printer = summary::from_args(args);
-            handler::summary(args, &repository, printer.as_ref(), Utc::now)
+            handler::summary(args, &repository, printer.as_ref(), || {
+                Zoned::now().datetime()
+            })
         }
     };
 
